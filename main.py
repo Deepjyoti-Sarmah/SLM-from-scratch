@@ -1,14 +1,28 @@
+from src.dataset import GPTDataset
 from src.tokenizer import CharacterTokenizer
 
-tokenizer = CharacterTokenizer("banana")
+# tokenizer = CharacterTokenizer("banana")
+#
+# encoded = tokenizer.encode("banana")
+#
+# print(encoded)
+#
+# decoded = tokenizer.decode(encoded)
+#
+# None print(decoded)
 
-encoded = tokenizer.encode("banana")
+tokens = [10, 20, 30, 40, 50, 60, 70]
 
-print(encoded)
+dataset = GPTDataset(tokens, context_size=3)
 
-decoded = tokenizer.decode(encoded)
+print(len(dataset))
 
-print(decoded)
+for i in range(len(dataset)):
+    x, y = dataset[i]
+    print(f"{i=}")
+    print("input :", x)
+    print("output :", y)
+    print()
 
 
 # chars = ["a", "b", "c"]
