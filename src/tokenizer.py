@@ -4,8 +4,7 @@ class CharacterTokenizer:
         self.chars = sorted(set(text))
 
         self.stoi = {ch: index for index, ch in enumerate(self.chars)}
-
-        self.iots = {index: ch for index, ch in enumerate(self.chars)}
+        self.itos = {index: ch for index, ch in enumerate(self.chars)}
 
     def encode(self, text: str) -> list[int]:
         ids = []
@@ -19,6 +18,6 @@ class CharacterTokenizer:
         chars = []
 
         for token_id in ids:
-            chars.append(self.iots[token_id])
+            chars.append(self.itos[token_id])
 
         return "".join(chars)

@@ -1,4 +1,8 @@
-class GPTDataset:
+import torch
+from torch.utils.data import Dataset
+
+
+class GPTDataset(Dataset):
     def __init__(
         self,
         tokens: list[int],
@@ -14,7 +18,9 @@ class GPTDataset:
         return n - c
 
     def __getitem__(self, index: int):
-        input_ids = self.tokens[index : index + self.context_size]
-        target_ids = self.tokens[index + 1 : index + self.context_size + 1]
+        input_ids = torch.tensor(self.tokens[index : index + self.context_size])
+        target_ids = torch.tensor(
+            self.tokens[index + 1 : index + self.context_size + 1]
+        )
 
         return input_ids, target_ids

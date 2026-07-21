@@ -1,36 +1,43 @@
 from src.dataset import GPTDataset
+from src.embedding import MyEmbedding
 from src.tokenizer import CharacterTokenizer
 
-# tokenizer = CharacterTokenizer("banana")
-#
-# encoded = tokenizer.encode("banana")
-#
-# print(encoded)
-#
-# decoded = tokenizer.decode(encoded)
-#
-# None print(decoded)
+from torch.utils.data import DataLoader
 
-tokens = [10, 20, 30, 40, 50, 60, 70]
 
-dataset = GPTDataset(tokens, context_size=3)
+text = "banana"
+
+tokenizer = CharacterTokenizer(text)
+
+tokens = tokenizer.encode(text)
+
+print(tokens)
+
+dataset = GPTDataset(
+    tokens=tokens,
+    context_size=3,
+)
 
 print(len(dataset))
 
-for i in range(len(dataset)):
-    x, y = dataset[i]
-    print(f"{i=}")
-    print("input :", x)
-    print("output :", y)
-    print()
 
+loader = DataLoader(
+    dataset,
+    batch_size=2,
+    shuffle=False,
+)
 
-# chars = ["a", "b", "c"]
-#
-# print(enumerate(chars))
-#
-# for item in enumerate(chars):
-#     print(item)
-#
-# for idx, ch in enumerate(chars):
-#     print(idx, ch)
+embedding = MyEmbedding(
+    vocab_size=len(tokenizer.chars),
+    embedding_dim=4,
+)
+
+for inputs, targets in loader:
+    print("Input IDs:")
+    print(inputs)
+
+    vectors = embedding(inputs)
+
+    print("Embedding Shape:", vectors.shape)
+    print(vectors)
+    break
