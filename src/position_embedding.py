@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 
 
@@ -14,5 +15,5 @@ class PositionEmbedding(nn.Module):
             embedding_dim=embedding_dim,
         )
 
-    def forward(self, max_sequence_length: int):
-        return self.embedding(max_sequence_length)
+    def forward(self, position_ids: torch.Tensor) -> torch.Tensor:
+        return self.embedding(position_ids)
