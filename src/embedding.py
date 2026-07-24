@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 
 
@@ -14,5 +15,5 @@ class MyEmbedding(nn.Module):
             embedding_dim=embedding_dim,
         )
 
-    def forward(self, token_ids):
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         return self.embedding(token_ids)

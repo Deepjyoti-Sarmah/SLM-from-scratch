@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 
-from main import position_ids
 from src import position_embedding
 from src.embedding import MyEmbedding
 from src.position_embedding import PositionEmbedding
