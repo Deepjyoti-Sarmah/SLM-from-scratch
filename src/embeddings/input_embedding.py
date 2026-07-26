@@ -38,3 +38,4 @@ class InputEmbedding(nn.Module):
         input_embeddings = token_embeddings + position_embeddings
 
         return input_embeddings
+
