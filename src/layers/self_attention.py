@@ -38,7 +38,13 @@ class SelfAttention(nn.Module):
         # scores = query @ key.transpose(-2, -1)
         # scores = scores / math.sqrt(query.size(-1))
 
+        # scores = (query @ key.transpose(-2, -1)) / math.sqrt(query.size(-1))
+
         scale = query.size(-1) ** -0.5
         scores = (query @ key.transpose(-2, -1)) * scale
 
-        return scores, value
+        weights = torch.softmax(scores, dim=-1)
+
+        output = weights @ value
+
+        return output

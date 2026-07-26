@@ -54,9 +54,10 @@ from src.tokenization.tokenizer import CharacterTokenizer
 
 x = torch.randn(2, 4, 512)
 
+
 attention = SelfAttention(embedding_dim=512)
 
-scores, value = attention(x)
+output = attention(x)
 
 query = attention.query(x)
 key = attention.key(x)
@@ -64,9 +65,24 @@ key = attention.key(x)
 
 print("Q shape:", query.shape)
 print("K shape:", key.shape)
-print("Scores shape:", scores.shape)
+# print("weights shape:", weights.shape)
 
-print(scores.min())
-print(scores.max())
-print(scores.mean())
-print(scores.std())
+print("Input shape :", x.shape)
+print("Output shape:", output.shape)
+
+print(torch.equal(x, output))
+print(torch.allclose(x, output))
+
+print("Input token 0:")
+print(x[0, 0])
+
+print("Output token 0:")
+print(output[0, 0])
+
+# print(weights[0].sum(dim=-1))
+
+
+# print(scores.min())
+# print(scores.max())
+# print(scores.mean())
+# print(scores.std())
