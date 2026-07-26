@@ -1,9 +1,9 @@
 import torch
 from torch.utils.data import DataLoader
 
-from src.dataset import GPTDataset
-from src.embedding import MyEmbedding
-from src.tokenizer import CharacterTokenizer
+from src.embeddings.token_embedding import MyEmbedding
+from src.tokenization.dataset import GPTDataset
+from src.tokenization.tokenizer import CharacterTokenizer
 
 text = "banana"
 
