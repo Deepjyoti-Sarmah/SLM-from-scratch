@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 
@@ -33,4 +35,10 @@ class SelfAttention(nn.Module):
         key = self.key(x)
         value = self.value(x)
 
-        return query, key, value
+        # scores = query @ key.transpose(-2, -1)
+        # scores = scores / math.sqrt(query.size(-1))
+
+        scale = query.size(-1) ** -0.5
+        scores = (query @ key.transpose(-2, -1)) * scale
+
+        return scores, value

@@ -52,13 +52,21 @@ from src.tokenization.tokenizer import CharacterTokenizer
 # print(type(position_ids))
 # print(position_ids.shape)
 
-x = torch.randn(2, 4, 8)
+x = torch.randn(2, 4, 512)
 
-attention = SelfAttention(embedding_dim=8)
+attention = SelfAttention(embedding_dim=512)
 
-Q, K, V = attention(x)
+scores, value = attention(x)
 
-print(x.shape)
-print(Q.shape)
-print(K.shape)
-print(V.shape)
+query = attention.query(x)
+key = attention.key(x)
+
+
+print("Q shape:", query.shape)
+print("K shape:", key.shape)
+print("Scores shape:", scores.shape)
+
+print(scores.min())
+print(scores.max())
+print(scores.mean())
+print(scores.std())
