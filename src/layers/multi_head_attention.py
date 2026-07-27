@@ -3,124 +3,166 @@ from typing import cast
 import torch
 from torch import nn
 
+_MASK_FILL_VALUE = float("-inf")
+
 
 class MultiHeadAttention(nn.Module):
+    mask: torch.Tensor
+
     def __init__(
         self,
+        *,
         embedding_dim: int,
         num_heads: int,
         max_sequence_length: int,
-    ):
+    ) -> None:
         super().__init__()
 
         if embedding_dim % num_heads != 0:
             raise ValueError("embedding_dim must be divisible by num_heads")
 
-        self.embedding_dim = embedding_dim
-        self.num_heads = num_heads
-        self.head_dim = embedding_dim // num_heads
+        self.embedding_dim: int = embedding_dim
+        self.num_heads: int = num_heads
+        self.head_dim: int = embedding_dim // num_heads
 
-        self.query = nn.Linear(
+        self.query_projection = nn.Linear(
             in_features=embedding_dim,
             out_features=embedding_dim,
             bias=False,
         )
-        self.key = nn.Linear(
+        self.key_projection = nn.Linear(
             in_features=embedding_dim,
             out_features=embedding_dim,
             bias=False,
         )
-        self.value = nn.Linear(
-            in_features=embedding_dim,
-            out_features=embedding_dim,
-            bias=False,
-        )
-
-        self.projection = nn.Linear(
+        self.value_projection = nn.Linear(
             in_features=embedding_dim,
             out_features=embedding_dim,
             bias=False,
         )
 
-        mask = torch.tril(
+        self.output_projection = nn.Linear(
+            in_features=embedding_dim,
+            out_features=embedding_dim,
+            bias=False,
+        )
+
+        self.register_buffer(
+            "mask",
+            self._create_causal_mask(
+                max_sequence_length=max_sequence_length,
+            ),
+        )
+
+    @staticmethod
+    def _create_causal_mask(
+        *,
+        max_sequence_length: int,
+    ) -> torch.Tensor:
+        return torch.tril(
             torch.ones(
                 max_sequence_length,
                 max_sequence_length,
             )
         )
 
-        self.register_buffer(
-            "mask",
-            mask,
-        )
+    def _split_heads(
+        self,
+        tensor: torch.Tensor,
+        *,
+        batch_size: int,
+        sequence_length: int,
+    ) -> torch.Tensor:
+        """
+        Convert
+            (B, T, D)
+        into
+            (B, H, T, Dh)
+        """
+
+        return tensor.view(
+            batch_size,
+            sequence_length,
+            self.num_heads,
+            self.head_dim,
+        ).transpose(1, 2)
 
     def forward(
         self,
         x: torch.Tensor,
     ) -> torch.Tensor:
-        B, T, D = x.shape
+        batch_size, sequence_length, _ = x.shape
 
-        q = self.query(x)
-        k = self.key(x)
-        v = self.value(x)
+        query = self.query_projection(x)
+        key = self.key_projection(x)
+        value = self.value_projection(x)
 
         print("After Linear:")
-        print("Q:", q.shape)
-        print("K:", k.shape)
-        print("V:", v.shape)
+        print("Q:", query.shape)
+        print("K:", key.shape)
+        print("V:", value.shape)
 
-        q = q.view(B, T, self.num_heads, self.head_dim)
-        k = k.view(B, T, self.num_heads, self.head_dim)
-        v = v.view(B, T, self.num_heads, self.head_dim)
-
-        print("\nAfter View:")
-        print("Q:", q.shape)
-        print("K:", k.shape)
-        print("V:", v.shape)
-
-        q = q.transpose(1, 2)
-        k = k.transpose(1, 2)
-        v = v.transpose(1, 2)
-
-        print("\nAfter Transpose:")
-        print("Q:", q.shape)
-        print("K:", k.shape)
-        print("V:", v.shape)
-
-        scale = self.head_dim**-0.5
-        scores = (q @ k.transpose(-2, -1)) * scale
-
-        print("\nScores:")
-        print(scores.shape)
-
-        mask = cast(torch.Tensor, self.mask)[:T, :T]
-
-        scores = scores.masked_fill(
-            mask == 0,
-            float("-inf"),
+        query = self._split_heads(
+            query,
+            batch_size=batch_size,
+            sequence_length=sequence_length,
+        )
+        key = self._split_heads(
+            key,
+            batch_size=batch_size,
+            sequence_length=sequence_length,
+        )
+        value = self._split_heads(
+            value,
+            batch_size=batch_size,
+            sequence_length=sequence_length,
         )
 
-        weights = torch.softmax(scores, dim=-1)
+        print("\nAfter Split Heads:")
+        print("Q:", query.shape)
+        print("K:", key.shape)
+        print("V:", value.shape)
 
-        print("\nWeights:")
-        print(weights.shape)
+        scale = self.head_dim**-0.5
+        attention_scores = (query @ key.transpose(-2, -1)) * scale
 
-        output = weights @ v
+        print("\nAttention Scores:")
+        print(attention_scores.shape)
 
-        print("\nOutput after attention:")
-        print(output.shape)
+        causal_mask = self.mask[:sequence_length, :sequence_length]
 
-        output = output.transpose(1, 2)
+        attention_scores = attention_scores.mask_fill(
+            causal_mask == 0,
+            _MASK_FILL_VALUE,
+        )
 
-        print("\nAfter transpose back:")
-        print(output.shape)
+        attention_weights = torch.softmax(attention_scores, dim=-1)
 
-        output = output.contiguous().view(
-            B,
-            T,
+        print("\nAttention Weights:")
+        print(attention_scores.shape)
+
+        attention_output = attention_weights @ value
+
+        print("\nAttention Output:")
+        print(attention_output.shape)
+
+        attention_output = attention_output.transpose(1, 2)
+
+        print("\nAfter Merge Transpose:")
+        print(attention_output.shape)
+
+        attention_output = attention_output.contiguous().view(
+            batch_size,
+            sequence_length,
             self.embedding_dim,
         )
 
-        output = self.projection(output)
+        print("\nAfter Merge Heads:")
+        print(attention_output.shape)
 
-        return output
+        attention_output = self.output_projection(attention_output)
+
+        print("\nAfter Output Projection:")
+        print(attention_output.shape)
+
+        return attention_output
