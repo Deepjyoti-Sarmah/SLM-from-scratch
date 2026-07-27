@@ -1,79 +1,39 @@
 import torch
-from torch.utils.data import DataLoader
 
-from src.embeddings.token_embedding import MyEmbedding
 from src.layers.self_attention import SelfAttention
-from src.tokenization.dataset import GPTDataset
-from src.tokenization.tokenizer import CharacterTokenizer
-
-# text = "banana"
-
-# tokenizer = CharacterTokenizer(text)
-
-# tokens = tokenizer.encode(text)
-
-# print(tokens)
-
-# dataset = GPTDataset(
-#     tokens=tokens,
-#     context_size=3,
-# )
-
-# print(len(dataset))
-
-
-# loader = DataLoader(
-#     dataset,
-#     batch_size=2,
-#     shuffle=False,
-# )
-
-# embedding = MyEmbedding(
-#     vocab_size=len(tokenizer.chars),
-#     embedding_dim=4,
-# )
-
-# print(embedding.embedding.weight.shape)
-# print(embedding.embedding.weight)
-
-# for inputs, targets in loader:
-#     print("Input IDs:")
-#     # print(inputs)
-
-#     vectors = embedding(inputs)
-
-#     print("Embedding Shape:", vectors.shape)
-#     print(vectors)
-#     break
-
-# position_ids = torch.arange(3)
-
-# print(position_ids)
-# print(type(position_ids))
-# print(position_ids.shape)
 
 x = torch.randn(2, 4, 8)
 
-
-attention = SelfAttention(embedding_dim=8)
+attention = SelfAttention(
+    embedding_dim=8,
+    max_sequence_length=16,
+)
 
 output = attention(x)
 
-query = attention.query(x)
-key = attention.key(x)
+print("Input Shape :", x.shape)
+print("Output Shape:", output.shape)
 
+print()
 
-print("Q shape:", query.shape)
-print("K shape:", key.shape)
+print("===== Parameters =====")
+for name, param in attention.named_parameters():
+    print(name, param.shape)
 
-print("Input shape :", x.shape)
-print("Output shape:", output.shape)
+print()
 
-print(torch.equal(x, output))
-print(torch.allclose(x, output))
+print("===== Buffers =====")
+for name, buffer in attention.named_buffers():
+    print(name, buffer.shape)
 
-print("Input token 0:")
-print(x[0, 0])
+print()
 
-print("Output token 0:")
-print(output[0, 0])
+print("Stored Mask:")
+print(attention.mask)
+
+print()
+
+T = x.size(1)
+
+print(f"Mask used for sequence length {T}:")
+print(attention.mask[:T, :T])
