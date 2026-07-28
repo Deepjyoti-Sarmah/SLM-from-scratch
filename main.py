@@ -40,6 +40,7 @@
 
 import torch
 
+from src.layers.feed_forward import FeedForward
 from src.layers.multi_head_attention import MultiHeadAttention
 
 x = torch.randn(2, 4, 8)
@@ -53,4 +54,15 @@ attention = MultiHeadAttention(
 output = attention(x)
 
 print("\nReturned Output Shape:")
+print(output.shape)
+
+x = torch.randn(2, 4, 8)
+
+feed_forward = FeedForward(
+    embedding_dim=8,
+)
+
+output = feed_forward(x)
+
+print("\nFinal Output:")
 print(output.shape)

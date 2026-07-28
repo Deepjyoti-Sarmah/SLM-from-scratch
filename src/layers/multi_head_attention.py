@@ -131,7 +131,7 @@ class MultiHeadAttention(nn.Module):
 
         causal_mask = self.mask[:sequence_length, :sequence_length]
 
-        attention_scores = attention_scores.mask_fill(
+        attention_scores = attention_scores.masked_fill(
             causal_mask == 0,
             _MASK_FILL_VALUE,
         )
