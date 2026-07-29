@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+from main import feed_forward
 from src.layers.feed_forward import FeedForward
 from src.layers.layer_norm import LayerNorm
 from src.layers.multi_head_attention import MultiHeadAttention
@@ -38,6 +39,14 @@ class TransformerBlock(nn.Module):
     ) -> torch.Tensor:
         normalized_x = self.attention_layer_norm(x)
 
-        attention_output = self.multi_head_attention(
-            normalized_x
-        )
+        attention_output = self.multi_head_attention(normalized_x)
+
+        x = x + attention_output
+
+        normalized_x = self.feed_forward_layer_norm(x)
+
+        feed_forward_output = self.feed_forward(normalized_x)
+
+        x = x + feed_forward_output
+
+        return x
