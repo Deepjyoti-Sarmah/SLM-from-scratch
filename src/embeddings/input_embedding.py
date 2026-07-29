@@ -11,6 +11,7 @@ class InputEmbedding(nn.Module):
         vocab_size: int,
         max_sequence_length: int,
         embedding_dim: int,
+        dropout_probability: float,
     ):
         super().__init__()
 
@@ -24,8 +25,10 @@ class InputEmbedding(nn.Module):
             embedding_dim=embedding_dim,
         )
 
+        self.dropout = nn.Dropout(dropout_probability)
+
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
-        B, T = token_ids.shape
+        _B, T = token_ids.shape
 
         position_ids = torch.arange(
             T,
@@ -37,5 +40,6 @@ class InputEmbedding(nn.Module):
 
         input_embeddings = token_embeddings + position_embeddings
 
-        return input_embeddings
+        input_embeddings = self.dropout(input_embeddings)
 
+        return input_embeddings

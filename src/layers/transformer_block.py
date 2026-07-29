@@ -12,6 +12,7 @@ class TransformerBlock(nn.Module):
         embedding_dim: int,
         num_heads: int,
         max_sequence_length: int,
+        dropout_probability: float,
     ) -> None:
         super().__init__()
 
@@ -25,11 +26,15 @@ class TransformerBlock(nn.Module):
             embedding_dim=embedding_dim,
             num_heads=num_heads,
             max_sequence_length=max_sequence_length,
+            dropout_probability=dropout_probability,
         )
 
         self.feed_forward_norm = nn.LayerNorm(normalized_shape=embedding_dim)
 
-        self.feed_forward = FeedForward(embedding_dim=embedding_dim)
+        self.feed_forward = FeedForward(
+            embedding_dim=embedding_dim,
+            dropout_probability=dropout_probability,
+        )
 
     def forward(
         self,

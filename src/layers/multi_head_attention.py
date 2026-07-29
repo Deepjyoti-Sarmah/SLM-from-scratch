@@ -13,6 +13,7 @@ class MultiHeadAttention(nn.Module):
         embedding_dim: int,
         num_heads: int,
         max_sequence_length: int,
+        dropout_probability: float,
     ) -> None:
         super().__init__()
 
@@ -51,6 +52,9 @@ class MultiHeadAttention(nn.Module):
                 max_sequence_length=max_sequence_length,
             ),
         )
+
+        self.attention_dropout = nn.Dropout(dropout_probability)
+        self.output_dropout = nn.Dropout(dropout_probability)
 
     @staticmethod
     def _create_causal_mask(
@@ -95,10 +99,10 @@ class MultiHeadAttention(nn.Module):
         key = self.key_projection(x)
         value = self.value_projection(x)
 
-        print("After Linear:")
-        print("Q:", query.shape)
-        print("K:", key.shape)
-        print("V:", value.shape)
+        # print("After Linear:")
+        # print("Q:", query.shape)
+        # print("K:", key.shape)
+        # print("V:", value.shape)
 
         query = self._split_heads(
             query,
@@ -116,16 +120,16 @@ class MultiHeadAttention(nn.Module):
             sequence_length=sequence_length,
         )
 
-        print("\nAfter Split Heads:")
-        print("Q:", query.shape)
-        print("K:", key.shape)
-        print("V:", value.shape)
+        # print("\nAfter Split Heads:")
+        # print("Q:", query.shape)
+        # print("K:", key.shape)
+        # print("V:", value.shape)
 
         scale = self.head_dim**-0.5
         attention_scores = (query @ key.transpose(-2, -1)) * scale
 
-        print("\nAttention Scores:")
-        print(attention_scores.shape)
+        # print("\nAttention Scores:")
+        # print(attention_scores.shape)
 
         causal_mask = self.mask[:sequence_length, :sequence_length]
 
@@ -136,18 +140,20 @@ class MultiHeadAttention(nn.Module):
 
         attention_weights = torch.softmax(attention_scores, dim=-1)
 
-        print("\nAttention Weights:")
-        print(attention_scores.shape)
+        attention_weights = self.attention_dropout(attention_weights)
+
+        # print("\nAttention Weights:")
+        # print(attention_scores.shape)
 
         attention_output = attention_weights @ value
 
-        print("\nAttention Output:")
-        print(attention_output.shape)
+        # print("\nAttention Output:")
+        # print(attention_output.shape)
 
         attention_output = attention_output.transpose(1, 2)
 
-        print("\nAfter Merge Transpose:")
-        print(attention_output.shape)
+        # print("\nAfter Merge Transpose:")
+        # print(attention_output.shape)
 
         attention_output = attention_output.contiguous().view(
             batch_size,
@@ -155,12 +161,14 @@ class MultiHeadAttention(nn.Module):
             self.embedding_dim,
         )
 
-        print("\nAfter Merge Heads:")
-        print(attention_output.shape)
+        # print("\nAfter Merge Heads:")
+        # print(attention_output.shape)
 
         attention_output = self.output_projection(attention_output)
 
-        print("\nAfter Output Projection:")
-        print(attention_output.shape)
+        attention_output = self.output_dropout(attention_output)
+
+        # print("\nAfter Output Projection:")
+        # print(attention_output.shape)
 
         return attention_output

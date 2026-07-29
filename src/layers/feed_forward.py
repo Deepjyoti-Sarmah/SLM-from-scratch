@@ -7,6 +7,7 @@ class FeedForward(nn.Module):
         self,
         *,
         embedding_dim: int,
+        dropout_probability: float,
     ) -> None:
         super().__init__()
 
@@ -26,24 +27,19 @@ class FeedForward(nn.Module):
             out_features=embedding_dim,
         )
 
+        self.dropout = nn.Dropout(dropout_probability)
+
     def forward(
         self,
-        x: torch.Tensor,
+        hidden_states: torch.Tensor,
     ) -> torch.Tensor:
 
-        hidden = self.input_projection(x)
+        hidden_states = self.input_projection(hidden_states)
 
-        print("After Input projection:")
-        print(hidden.shape)
+        hidden_states = self.activation(hidden_states)
 
-        hidden = self.activation(hidden)
+        hidden_states = self.output_projection(hidden_states)
 
-        print("\nAfter GELU:")
-        print(hidden.shape)
+        hidden_states = self.dropout(hidden_states)
 
-        output = self.output_projection(hidden)
-
-        print("\nAfter Output Projection:")
-        print(output.shape)
-
-        return output
+        return hidden_states
