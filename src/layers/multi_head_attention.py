@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+from src.configs.gpt_config import GPTConfig
+
 _MASK_FILL_VALUE = float("-inf")
 
 
@@ -10,51 +12,48 @@ class MultiHeadAttention(nn.Module):
     def __init__(
         self,
         *,
-        embedding_dim: int,
-        num_heads: int,
-        max_sequence_length: int,
-        dropout_probability: float,
+        config: GPTConfig,
     ) -> None:
         super().__init__()
 
-        if embedding_dim % num_heads != 0:
+        if config.embedding_dim % config.num_heads != 0:
             raise ValueError("embedding_dim must be divisible by num_heads")
 
-        self.embedding_dim: int = embedding_dim
-        self.num_heads: int = num_heads
-        self.head_dim: int = embedding_dim // num_heads
+        self.embedding_dim: int = config.embedding_dim
+        self.num_heads: int = config.num_heads
+        self.head_dim: int = config.embedding_dim // config.num_heads
 
         self.query_projection = nn.Linear(
-            in_features=embedding_dim,
-            out_features=embedding_dim,
+            in_features=config.embedding_dim,
+            out_features=config.embedding_dim,
             bias=False,
         )
         self.key_projection = nn.Linear(
-            in_features=embedding_dim,
-            out_features=embedding_dim,
+            in_features=config.embedding_dim,
+            out_features=config.embedding_dim,
             bias=False,
         )
         self.value_projection = nn.Linear(
-            in_features=embedding_dim,
-            out_features=embedding_dim,
+            in_features=config.embedding_dim,
+            out_features=config.embedding_dim,
             bias=False,
         )
 
         self.output_projection = nn.Linear(
-            in_features=embedding_dim,
-            out_features=embedding_dim,
+            in_features=config.embedding_dim,
+            out_features=config.embedding_dim,
             bias=False,
         )
 
         self.register_buffer(
             "mask",
             self._create_causal_mask(
-                max_sequence_length=max_sequence_length,
+                max_sequence_length=config.max_sequence_length,
             ),
         )
 
-        self.attention_dropout = nn.Dropout(dropout_probability)
-        self.output_dropout = nn.Dropout(dropout_probability)
+        self.attention_dropout = nn.Dropout(config.dropout_probability)
+        self.output_dropout = nn.Dropout(config.dropout_probability)
 
     @staticmethod
     def _create_causal_mask(
@@ -91,13 +90,13 @@ class MultiHeadAttention(nn.Module):
 
     def forward(
         self,
-        x: torch.Tensor,
+        hidden_states: torch.Tensor,
     ) -> torch.Tensor:
-        batch_size, sequence_length, _ = x.shape
+        batch_size, sequence_length, _ = hidden_states.shape
 
-        query = self.query_projection(x)
-        key = self.key_projection(x)
-        value = self.value_projection(x)
+        query = self.query_projection(hidden_states)
+        key = self.key_projection(hidden_states)
+        value = self.value_projection(hidden_states)
 
         # print("After Linear:")
         # print("Q:", query.shape)

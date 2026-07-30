@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+from src.configs.gpt_config import GPTConfig
 from src.embeddings.position_embedding import PositionEmbedding
 from src.embeddings.token_embedding import MyEmbedding
 
@@ -8,30 +9,28 @@ from src.embeddings.token_embedding import MyEmbedding
 class InputEmbedding(nn.Module):
     def __init__(
         self,
-        vocab_size: int,
-        max_sequence_length: int,
-        embedding_dim: int,
-        dropout_probability: float,
+        *,
+        config: GPTConfig,
     ):
         super().__init__()
 
         self.token_embedding = MyEmbedding(
-            vocab_size=vocab_size,
-            embedding_dim=embedding_dim,
+            vocab_size=config.vocab_size,
+            embedding_dim=config.embedding_dim,
         )
 
         self.position_embedding = PositionEmbedding(
-            max_sequence_length=max_sequence_length,
-            embedding_dim=embedding_dim,
+            max_sequence_length=config.max_sequence_length,
+            embedding_dim=config.embedding_dim,
         )
 
-        self.dropout = nn.Dropout(dropout_probability)
+        self.dropout = nn.Dropout(config.dropout_probability)
 
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
-        _B, T = token_ids.shape
+        _, sequence_length = token_ids.shape
 
         position_ids = torch.arange(
-            T,
+            sequence_length,
             device=token_ids.device,
         )
 

@@ -8,7 +8,7 @@ class GPTConfig:
 
     embedding_dim: int
     num_heads: int
-    num_layer: int
+    num_layers: int
 
     dropout_probability: float = 0.1
 

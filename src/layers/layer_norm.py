@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.nn.parallel.replicate import T
 
 
 class LayerNorm(nn.Module):

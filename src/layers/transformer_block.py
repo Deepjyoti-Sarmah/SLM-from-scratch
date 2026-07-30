@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+from src.configs.gpt_config import GPTConfig
 from src.layers.feed_forward import FeedForward
 from src.layers.multi_head_attention import MultiHeadAttention
 
@@ -9,10 +10,7 @@ class TransformerBlock(nn.Module):
     def __init__(
         self,
         *,
-        embedding_dim: int,
-        num_heads: int,
-        max_sequence_length: int,
-        dropout_probability: float,
+        config: GPTConfig,
     ) -> None:
         super().__init__()
 
@@ -20,21 +18,13 @@ class TransformerBlock(nn.Module):
         # self.num_heads: int = num_heads
         # self.max_sequence_length: int = max_sequence_length
 
-        self.attention_norm = nn.LayerNorm(normalized_shape=embedding_dim)
+        self.attention_norm = nn.LayerNorm(normalized_shape=config.embedding_dim)
 
-        self.multi_head_attention = MultiHeadAttention(
-            embedding_dim=embedding_dim,
-            num_heads=num_heads,
-            max_sequence_length=max_sequence_length,
-            dropout_probability=dropout_probability,
-        )
+        self.multi_head_attention = MultiHeadAttention(config=config)
 
-        self.feed_forward_norm = nn.LayerNorm(normalized_shape=embedding_dim)
+        self.feed_forward_norm = nn.LayerNorm(normalized_shape=config.embedding_dim)
 
-        self.feed_forward = FeedForward(
-            embedding_dim=embedding_dim,
-            dropout_probability=dropout_probability,
-        )
+        self.feed_forward = FeedForward(config=config)
 
     def forward(
         self,
