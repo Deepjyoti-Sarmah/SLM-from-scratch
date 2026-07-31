@@ -3,7 +3,7 @@ from torch import nn
 
 from src.configs.gpt_config import GPTConfig
 from src.embeddings.position_embedding import PositionEmbedding
-from src.embeddings.token_embedding import MyEmbedding
+from src.embeddings.token_embedding import TokenEmbedding
 
 
 class InputEmbedding(nn.Module):
@@ -14,7 +14,7 @@ class InputEmbedding(nn.Module):
     ):
         super().__init__()
 
-        self.token_embedding = MyEmbedding(
+        self.token_embedding = TokenEmbedding(
             vocab_size=config.vocab_size,
             embedding_dim=config.embedding_dim,
         )

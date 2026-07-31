@@ -59,6 +59,11 @@ def main() -> None:
 
     print(f"Embedding std : {embedding.std().item():.4f}")
 
+    print(f"LM Head std   : {model.lm_head.weight.std().item():.4f}")
+
+    print(f"Config initializer_range: {config.initializer_range}")
+    print(f"Model initializer_range : {model.config.initializer_range}")
+
 
 if __name__ == "__main__":
     main()

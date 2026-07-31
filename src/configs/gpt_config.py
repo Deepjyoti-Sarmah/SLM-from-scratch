@@ -14,4 +14,4 @@ class GPTConfig:
 
     bias: bool = False
 
-    initializer_range: float = 0.03
+    initializer_range: float = 0.02

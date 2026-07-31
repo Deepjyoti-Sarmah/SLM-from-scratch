@@ -74,7 +74,7 @@ class GPTModel(nn.Module):
 
         logits = self.lm_head(hidden_states)
 
-        loss = None
+        loss: torch.Tensor | None = None
 
         if targets is not None:
             loss = F.cross_entropy(

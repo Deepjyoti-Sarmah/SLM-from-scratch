@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 
-class MyEmbedding(nn.Module):
+class TokenEmbedding(nn.Module):
     def __init__(
         self,
         vocab_size: int,
