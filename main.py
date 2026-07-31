@@ -38,31 +38,56 @@
 # print(f"Mask used for sequence length {T}:")
 # print(attention.mask[:T, :T])
 
+# import torch
+
+# from src.layers.feed_forward import FeedForward
+# from src.layers.multi_head_attention import MultiHeadAttention
+
+# x = torch.randn(2, 4, 8)
+
+# attention = MultiHeadAttention(
+#     embedding_dim=8,
+#     num_heads=2,
+#     max_sequence_length=16,
+# )
+
+# output = attention(x)
+
+# print("\nReturned Output Shape:")
+# print(output.shape)
+
+# x = torch.randn(2, 4, 8)
+
+# feed_forward = FeedForward(
+#     embedding_dim=8,
+# )
+
+# output = feed_forward(x)
+
+# print("\nFinal Output:")
+# print(output.shape)
+
 import torch
 
-from src.layers.feed_forward import FeedForward
-from src.layers.multi_head_attention import MultiHeadAttention
+from src.configs.gpt_config import GPTConfig
+from src.models.gpt import GPTModel
 
-x = torch.randn(2, 4, 8)
-
-attention = MultiHeadAttention(
-    embedding_dim=8,
-    num_heads=2,
+config = GPTConfig(
+    vocab_size=100,
     max_sequence_length=16,
+    embedding_dim=64,
+    num_heads=4,
+    num_layers=2,
 )
 
-output = attention(x)
+model = GPTModel(config=config)
 
-print("\nReturned Output Shape:")
-print(output.shape)
-
-x = torch.randn(2, 4, 8)
-
-feed_forward = FeedForward(
-    embedding_dim=8,
+token_ids = torch.randint(
+    low=0,
+    high=config.vocab_size,
+    size=(2, 16),
 )
 
-output = feed_forward(x)
+logits = model(token_ids)
 
-print("\nFinal Output:")
-print(output.shape)
+print(logits.shape)

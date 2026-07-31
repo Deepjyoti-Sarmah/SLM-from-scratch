@@ -28,6 +28,11 @@ class GPTModel(nn.Module):
             bias=False,
         )
 
+        self._tie_weights()
+
+    def _tie_weights(self) -> None:
+        self.lm_head.weight = self.input_embedding.token_embedding.embedding.weight
+
     def forward(
         self,
         token_ids: torch.Tensor,
