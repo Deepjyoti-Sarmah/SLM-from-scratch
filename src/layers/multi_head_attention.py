@@ -1,3 +1,18 @@
+# Hidden States
+#       │
+#       ▼
+# QKV Projection
+#       │
+#       ▼
+#    (B,T,3D)
+#       │
+#       ▼
+#     Split
+#       │
+#  ┌────┴────┐
+#  ▼    ▼    ▼
+#  Q    K    V
+
 import torch
 from torch import nn
 
@@ -23,26 +38,32 @@ class MultiHeadAttention(nn.Module):
         self.num_heads: int = config.num_heads
         self.head_dim: int = config.embedding_dim // config.num_heads
 
-        self.query_projection = nn.Linear(
+        # self.query_projection = nn.Linear(
+        #     in_features=config.embedding_dim,
+        #     out_features=config.embedding_dim,
+        #     bias=False,
+        # )
+        # self.key_projection = nn.Linear(
+        #     in_features=config.embedding_dim,
+        #     out_features=config.embedding_dim,
+        #     bias=False,
+        # )
+        # self.value_projection = nn.Linear(
+        #     in_features=config.embedding_dim,
+        #     out_features=config.embedding_dim,
+        #     bias=False,
+        # )
+
+        self.qkv_projection = nn.Linear(
             in_features=config.embedding_dim,
-            out_features=config.embedding_dim,
-            bias=False,
-        )
-        self.key_projection = nn.Linear(
-            in_features=config.embedding_dim,
-            out_features=config.embedding_dim,
-            bias=False,
-        )
-        self.value_projection = nn.Linear(
-            in_features=config.embedding_dim,
-            out_features=config.embedding_dim,
-            bias=False,
+            out_features=3 * config.embedding_dim,
+            bias=config.bias,
         )
 
         self.output_projection = nn.Linear(
             in_features=config.embedding_dim,
             out_features=config.embedding_dim,
-            bias=False,
+            bias=config.bias,
         )
 
         self.register_buffer(
@@ -94,35 +115,42 @@ class MultiHeadAttention(nn.Module):
     ) -> torch.Tensor:
         batch_size, sequence_length, _ = hidden_states.shape
 
-        query = self.query_projection(hidden_states)
-        key = self.key_projection(hidden_states)
-        value = self.value_projection(hidden_states)
+        # query = self.query_projection(hidden_states)
+        # key = self.key_projection(hidden_states)
+        # value = self.value_projection(hidden_states)
 
         # print("After Linear:")
         # print("Q:", query.shape)
         # print("K:", key.shape)
         # print("V:", value.shape)
 
-        query = self._split_heads(
-            query,
-            batch_size=batch_size,
-            sequence_length=sequence_length,
-        )
-        key = self._split_heads(
-            key,
-            batch_size=batch_size,
-            sequence_length=sequence_length,
-        )
-        value = self._split_heads(
-            value,
-            batch_size=batch_size,
-            sequence_length=sequence_length,
-        )
+        qkv = self.qkv_projection(hidden_states)
+
+        # query = self._split_heads(
+        #     query,
+        #     batch_size=batch_size,
+        #     sequence_length=sequence_length,
+        # )
+        # key = self._split_heads(
+        #     key,
+        #     batch_size=batch_size,
+        #     sequence_length=sequence_length,
+        # )
+        # value = self._split_heads(
+        #     value,
+        #     batch_size=batch_size,
+        #     sequence_length=sequence_length,
+        # )
 
         # print("\nAfter Split Heads:")
         # print("Q:", query.shape)
         # print("K:", key.shape)
         # print("V:", value.shape)
+
+        query, key, value = qkv.split(
+            self.embedding_dim,
+            dim=1,
+        )
 
         scale = self.head_dim**-0.5
         attention_scores = (query @ key.transpose(-2, -1)) * scale
