@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from src.configs.gpt_config import GPTConfig
@@ -36,7 +37,8 @@ class GPTModel(nn.Module):
     def forward(
         self,
         token_ids: torch.Tensor,
-    ) -> torch.Tensor:
+        targets: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         hidden_states = self.input_embedding(token_ids)
 
         for block in self.blocks:
@@ -46,4 +48,12 @@ class GPTModel(nn.Module):
 
         logits = self.lm_head(hidden_states)
 
-        return logits
+        loss = None
+
+        if targets is not None:
+            loss = F.cross_entropy(
+                logits.reshape(-1, self.vocab_size),
+                targets.reshape(-1),
+            )
+
+        return logits, loss
