@@ -70,7 +70,7 @@
 import torch
 
 from src.configs.gpt_config import GPTConfig
-from src.models.gpt import GPTModel
+from src.models.gpt import GPT
 
 config = GPTConfig(
     vocab_size=100,
@@ -80,7 +80,7 @@ config = GPTConfig(
     num_layers=2,
 )
 
-model = GPTModel(config=config)
+model = GPT(config=config)
 
 token_ids = torch.randint(
     low=0,

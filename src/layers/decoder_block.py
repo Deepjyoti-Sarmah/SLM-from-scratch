@@ -2,11 +2,11 @@ import torch
 from torch import nn
 
 from src.configs.gpt_config import GPTConfig
-from src.layers.feed_forward import FeedForward
-from src.layers.multi_head_attention import MultiHeadAttention
+from src.layers.causal_self_attention import CausalSelfAttention
+from src.layers.multi_layer_perceptron import MLP
 
 
-class TransformerBlock(nn.Module):
+class DecoderBlock(nn.Module):
     def __init__(
         self,
         *,
@@ -20,11 +20,11 @@ class TransformerBlock(nn.Module):
 
         self.attention_norm = nn.LayerNorm(normalized_shape=config.embedding_dim)
 
-        self.multi_head_attention = MultiHeadAttention(config=config)
+        self.multi_head_attention = CausalSelfAttention(config=config)
 
         self.feed_forward_norm = nn.LayerNorm(normalized_shape=config.embedding_dim)
 
-        self.feed_forward = FeedForward(config=config)
+        self.feed_forward = MLP(config=config)
 
     def forward(
         self,

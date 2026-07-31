@@ -3,11 +3,11 @@ import torch.nn.functional as F
 from torch import nn
 
 from src.configs.gpt_config import GPTConfig
-from src.embeddings.input_embedding import InputEmbedding
-from src.layers.transformer_block import TransformerBlock
+from src.embeddings.embedding_layer import EmbeddingLayer
+from src.layers.decoder_block import DecoderBlock
 
 
-class GPTModel(nn.Module):
+class GPT(nn.Module):
     def __init__(
         self,
         *,
@@ -18,10 +18,10 @@ class GPTModel(nn.Module):
         self.config = config
         self.vocab_size = config.vocab_size
 
-        self.input_embedding = InputEmbedding(config=config)
+        self.input_embedding = EmbeddingLayer(config=config)
 
         self.blocks = nn.ModuleList(
-            [TransformerBlock(config=config) for _ in range(config.num_layers)]
+            [DecoderBlock(config=config) for _ in range(config.num_layers)]
         )
 
         self.final_norm = nn.LayerNorm(normalized_shape=config.embedding_dim)

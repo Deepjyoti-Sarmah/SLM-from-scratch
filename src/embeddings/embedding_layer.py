@@ -6,7 +6,7 @@ from src.embeddings.position_embedding import PositionEmbedding
 from src.embeddings.token_embedding import TokenEmbedding
 
 
-class InputEmbedding(nn.Module):
+class EmbeddingLayer(nn.Module):
     def __init__(
         self,
         *,

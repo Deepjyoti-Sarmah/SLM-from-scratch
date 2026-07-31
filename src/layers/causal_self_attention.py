@@ -22,7 +22,7 @@ from src.configs.gpt_config import GPTConfig
 # _MASK_FILL_VALUE = float("-inf")
 
 
-class MultiHeadAttention(nn.Module):
+class CausalSelfAttention(nn.Module):
     mask: torch.Tensor
 
     def __init__(

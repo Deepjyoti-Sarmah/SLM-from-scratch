@@ -4,7 +4,7 @@ from torch import nn
 from src.configs.gpt_config import GPTConfig
 
 
-class FeedForward(nn.Module):
+class MLP(nn.Module):
     def __init__(
         self,
         *,
