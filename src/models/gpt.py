@@ -15,6 +15,9 @@ class GPTModel(nn.Module):
     ) -> None:
         super().__init__()
 
+        self.config = config
+        self.vocab_size = config.vocab_size
+
         self.input_embedding = InputEmbedding(config=config)
 
         self.blocks = nn.ModuleList(
@@ -29,7 +32,30 @@ class GPTModel(nn.Module):
             bias=False,
         )
 
+        self.apply(self._init_weights)
+
         self._tie_weights()
+
+    def _init_weights(
+        self,
+        module: nn.Module,
+    ) -> None:
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=self.config.initializer_range,
+            )
+
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=self.config.initializer_range,
+            )
 
     def _tie_weights(self) -> None:
         self.lm_head.weight = self.input_embedding.token_embedding.embedding.weight

@@ -13,3 +13,5 @@ class GPTConfig:
     dropout_probability: float = 0.1
 
     bias: bool = False
+
+    initializer_range: float = 0.03
