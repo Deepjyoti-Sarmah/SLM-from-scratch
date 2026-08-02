@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from torch.utils.data import Dataset
 
@@ -5,22 +7,30 @@ from torch.utils.data import Dataset
 class GPTDataset(Dataset):
     def __init__(
         self,
-        tokens: list[int],
-        context_size: int,
-    ):
-        self.tokens = tokens
-        self.context_size = context_size
+        *,
+        token_ids: list[int],
+        sequence_length: int,
+    ) -> None:
+        self.token_ids = token_ids
+        self.sequence_length = sequence_length
 
-    def __len__(self) -> int:
-        n = len(self.tokens)
-        c = self.context_size
+    def __len__(
+        self,
+    ) -> int:
+        return len(self.token_ids) - self.sequence_length
 
-        return n - c
+    def __getitem__(
+        self,
+        index: int,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        input_ids = torch.tensor(
+            self.token_ids[index : index + self.sequence_length],
+            dtype=torch.long,
+        )
 
-    def __getitem__(self, index: int):
-        input_ids = torch.tensor(self.tokens[index : index + self.context_size])
         target_ids = torch.tensor(
-            self.tokens[index + 1 : index + self.context_size + 1]
+            self.token_ids[index + 1 : index + self.sequence_length + 1],
+            dtype=torch.long,
         )
 
         return input_ids, target_ids
