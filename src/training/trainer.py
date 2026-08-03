@@ -1,5 +1,6 @@
 import torch
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 
 from src.configs.training_config import TrainingConfig
@@ -13,11 +14,13 @@ class Trainer:
         model: GPT,
         train_dataloader: DataLoader,
         optimizer: Optimizer,
+        scheduler: LRScheduler,
         config: TrainingConfig,
     ) -> None:
         self.model: GPT = model
         self.train_dataloader: DataLoader = train_dataloader
         self.optimizer: Optimizer = optimizer
+        self.scheduler = scheduler
         self.config: TrainingConfig = config
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -45,6 +48,13 @@ class Trainer:
 
             loss.backward()
 
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(),
+                max_norm=self.config.gradient_clip,
+            )
+
             self.optimizer.step()
+
+            self.scheduler.step()
 
             self.global_step += 1
