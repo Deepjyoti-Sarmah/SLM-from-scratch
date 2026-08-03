@@ -83,3 +83,43 @@ class GPT(nn.Module):
             )
 
         return logits, loss
+
+    @torch.no_grad()
+    def generate(
+        self,
+        *,
+        token_ids: torch.Tensor,
+        max_new_tokens: int,
+    ) -> torch.Tensor:
+        """
+        Generate text using greedy decoding.
+        """
+
+        self.eval()
+
+        for _ in range(max_new_tokens):
+            input_ids = token_ids[
+                :,
+                -self.config.max_sequence_length :,
+            ]
+
+            logits, _ = self(
+                token_ids=input_ids,
+            )
+
+            next_token_logits = logits[:, -1, :]
+
+            next_token = torch.argmax(
+                next_token_logits,
+                dim=-1,
+            )
+
+            token_ids = torch.cat(
+                (
+                    token_ids,
+                    next_token.unsqueeze(1),
+                ),
+                dim=1,
+            )
+
+        return token_ids
