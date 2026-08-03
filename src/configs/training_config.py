@@ -20,3 +20,9 @@ class TrainingConfig:
     log_every: int = 100
 
     checkpoint_every: int = 1000
+
+    warmup_steps: int = 200
+
+    max_steps: int = 10_000
+
+    minimum_learning_rate: float = 3e-5
