@@ -11,7 +11,8 @@ from src.training.trainer import Trainer
 
 def build_training_pipeline(
     *,
-    text: str,
+    tokenizer: CharacterTokenizer,
+    token_ids: list[int],
     model_config: GPTConfig,
     training_config: TrainingConfig,
 ) -> TrainingPipeline:
@@ -34,10 +35,6 @@ def build_training_pipeline(
         ↓
     Trainer
     """
-
-    tokenizer = CharacterTokenizer(text)
-
-    token_ids = tokenizer.encode(text)
 
     model = GPT(config=model_config)
 

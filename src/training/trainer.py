@@ -31,30 +31,82 @@ class Trainer:
         self.global_step = 0
 
     def train(self) -> None:
+        """
+        Train the model for multiple epochs
+        """
+
         self.model.train()
 
-        for input_ids, target_ids in self.train_dataloader:
-            input_ids = input_ids.to(self.device)
-            target_ids = target_ids.to(self.device)
+        for epoch in range(self.config.num_epochs):
+            self.current_epoch = epoch
 
-            self.optimizer.zero_grad()
+            epoch_loss = 0.0
+            num_batches = 0
 
-            _, loss = self.model(
-                token_ids=input_ids,
-                targets=target_ids,
+            for input_ids, target_ids in self.train_dataloader:
+                batch_loss = self._train_step(
+                    input_ids=input_ids,
+                    target_ids=target_ids,
+                )
+
+                epoch_loss += batch_loss
+                num_batches += 1
+
+                if self.global_step % self.config.log_every == 0:
+                    learning_rate = self.optimizer.param_groups[0]["lr"]
+
+                    print(
+                        f"[Epoch {epoch + 1:>2}/{self.config.num_epochs}] "
+                        f"[Step {self.global_step:>6}] "
+                        f"Loss: {batch_loss:.4f} "
+                        f"LR: {learning_rate:.6f}"
+                    )
+
+            average_loss = epoch_loss / num_batches
+
+            print(
+                f"Epoch {epoch + 1}/{self.config.num_epochs} "
+                f"| Average Loss: {average_loss:.4f}"
             )
 
-            assert loss is not None
+    def _train_step(
+        self,
+        *,
+        input_ids: torch.Tensor,
+        target_ids: torch.Tensor,
+    ) -> float:
+        """
+        Perform one optimization step.
 
-            loss.backward()
+        Returns
+        -------
+        float
+            Batch loss.
+        """
 
-            torch.nn.utils.clip_grad_norm_(
-                self.model.parameters(),
-                max_norm=self.config.gradient_clip,
-            )
+        input_ids = input_ids.to(self.device)
+        target_ids = target_ids.to(self.device)
 
-            self.optimizer.step()
+        self.optimizer.zero_grad()
 
-            self.scheduler.step()
+        _, loss = self.model(
+            token_ids=input_ids,
+            targets=target_ids,
+        )
 
-            self.global_step += 1
+        assert loss is not None
+
+        loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(
+            self.model.parameters(),
+            max_norm=self.config.gradient_clip,
+        )
+
+        self.optimizer.step()
+
+        self.scheduler.step()
+
+        self.global_step += 1
+
+        return loss.item()
