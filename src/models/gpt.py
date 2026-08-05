@@ -84,6 +84,116 @@ class GPT(nn.Module):
 
         return logits, loss
 
+    def _apply_temperature(
+        self,
+        logits: torch.Tensor,
+        *,
+        temperature: float,
+    ) -> torch.Tensor:
+        if temperature == 0.0:
+            return logits
+
+        return logits / temperature
+
+    def _apply_top_k(
+        self,
+        logits: torch.Tensor,
+        *,
+        top_k: int | None,
+    ) -> torch.Tensor:
+        if top_k is None:
+            return logits
+
+        k = min(
+            top_k,
+            self.vocab_size,
+        )
+
+        values, _ = torch.topk(
+            logits,
+            k=k,
+        )
+
+        threshold = values[:, -1].unsqueeze(-1)
+
+        logits = logits.masked_fill(
+            logits < threshold,
+            float("-inf"),
+        )
+
+        return logits
+
+    def _apply_top_p(
+        self,
+        logits: torch.Tensor,
+        *,
+        top_p: float | None,
+    ) -> torch.Tensor:
+        if top_p is None:
+            return logits
+
+        sorted_logits, sorted_indices = torch.sort(
+            logits,
+            descending=True,
+            dim=-1,
+        )
+
+        sorted_probabilities = torch.softmax(
+            sorted_logits,
+            dim=-1,
+        )
+
+        cumulative_probilities = torch.cumsum(
+            sorted_probabilities,
+            dim=-1,
+        )
+
+        sorted_mask = cumulative_probilities > top_p
+
+        sorted_mask[..., 1:] = sorted_mask[..., :-1].clone()
+        sorted_mask[..., 0] = False
+
+        sorted_logits = sorted_logits.masked_fill(
+            sorted_mask,
+            float("-inf"),
+        )
+
+        filtered_logits = torch.full_like(
+            logits,
+            float("-inf"),
+        )
+
+        filtered_logits.scatter_(
+            dim=-1,
+            index=sorted_indices,
+            src=sorted_logits,
+        )
+
+        return filtered_logits
+
+    def _sample_next_token(
+        self,
+        logits: torch.Tensor,
+        *,
+        temperature: float,
+    ) -> torch.Tensor:
+
+        if temperature == 0.0:
+            return torch.argmax(
+                logits,
+                dim=-1,
+            )
+
+        probabilities = torch.softmax(
+            logits,
+            dim=-1,
+        )
+
+        return torch.multinomial(
+            probabilities,
+            num_samples=1,
+        ).squeeze(-1)
+
     @torch.no_grad()
     def generate(
         self,
@@ -92,12 +202,13 @@ class GPT(nn.Module):
         max_new_tokens: int,
         temperature: float = 1.0,
         top_k: int | None = None,
+        top_p: float | None = None,
     ) -> torch.Tensor:
-        if temperature < 0.0:
-            raise ValueError("temperature must be greater than or equal to 0")
+        # if temperature < 0.0:
+        #     raise ValueError("temperature must be greater than or equal to 0")
 
-        if top_k is not None and top_k <= 0:
-            raise ValueError("top_k must be greater than 0")
+        # if top_k is not None and top_k <= 0:
+        #     raise ValueError("top_k must be greater than 0")
 
         self.eval()
 
@@ -118,50 +229,80 @@ class GPT(nn.Module):
             #     dim=-1,
             # )
 
-            next_token_logits = logits[:, -1, :]
+            # next_token_logits = logits[:, -1, :]
 
-            if temperature == 0.0:
-                next_token = torch.argmax(
-                    next_token_logits,
-                    dim=-1,
-                )
-            else:
-                next_token_logits = next_token_logits / temperature
+            # if temperature == 0.0:
+            #     next_token = torch.argmax(
+            #         next_token_logits,
+            #         dim=-1,
+            #     )
+            # else:
+            #     next_token_logits = next_token_logits / temperature
 
-                if top_k is not None:
-                    k = min(
-                        top_k,
-                        self.vocab_size,
-                    )
+            #     if top_k is not None:
+            #         k = min(
+            #             top_k,
+            #             self.vocab_size,
+            #         )
 
-                    top_k_value, _ = torch.topk(
-                        next_token_logits,
-                        k=k,
-                    )
+            #         top_k_value, _ = torch.topk(
+            #             next_token_logits,
+            #             k=k,
+            #         )
 
-                    threashold = top_k_value[:, -1].unsqueeze(-1)
+            #         threashold = top_k_value[:, -1].unsqueeze(-1)
 
-                    next_token_logits = next_token_logits.masked_fill(
-                        next_token_logits < threashold,
-                        float("-inf"),
-                    )
+            #         next_token_logits = next_token_logits.masked_fill(
+            #             next_token_logits < threashold,
+            #             float("-inf"),
+            #         )
 
-                probabilities = torch.softmax(
-                    next_token_logits,
-                    dim=-1,
-                )
+            #     probabilities = torch.softmax(
+            #         next_token_logits,
+            #         dim=-1,
+            #     )
 
-                next_token = torch.multinomial(
-                    probabilities,
-                    num_samples=1,
-                ).squeeze(-1)
+            #     next_token = torch.multinomial(
+            #         probabilities,
+            #         num_samples=1,
+            #     ).squeeze(-1)
+
+            # token_ids = torch.cat(
+            #     (
+            #         token_ids,
+            #         next_token.unsqueeze(1),
+            #     ),
+            #     dim=1,
+            # )
+            #
+            logits = logits[:, -1, :]
+
+            logits = self._apply_temperature(
+                logits,
+                temperature=temperature,
+            )
+
+            logits = self._apply_top_k(
+                logits=logits,
+                top_k=top_k,
+            )
+
+            logits = self._apply_top_p(
+                logits=logits,
+                top_p=top_p,
+            )
+
+            next_token = self._sample_next_token(
+                logits,
+                temperature=temperature,
+            )
 
             token_ids = torch.cat(
                 (
                     token_ids,
-                    next_token.unsqueeze(1),
+                    next_token.unsqueeze(-1),
                 ),
-                dim=1,
+                dim=-1,
             )
 
         return token_ids
