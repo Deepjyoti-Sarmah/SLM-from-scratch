@@ -90,10 +90,14 @@ class GPT(nn.Module):
         *,
         token_ids: torch.Tensor,
         max_new_tokens: int,
+        temperature: float = 1.0,
+        top_k: int | None = None,
     ) -> torch.Tensor:
-        """
-        Generate text using greedy decoding.
-        """
+        if temperature < 0.0:
+            raise ValueError("temperature must be greater than or equal to 0")
+
+        if top_k is not None and top_k <= 0:
+            raise ValueError("top_k must be greater than 0")
 
         self.eval()
 
@@ -107,12 +111,50 @@ class GPT(nn.Module):
                 token_ids=input_ids,
             )
 
+            # next_token_logits = logits[:, -1, :]
+
+            # next_token = torch.argmax(
+            #     next_token_logits,
+            #     dim=-1,
+            # )
+
             next_token_logits = logits[:, -1, :]
 
-            next_token = torch.argmax(
-                next_token_logits,
-                dim=-1,
-            )
+            if temperature == 0.0:
+                next_token = torch.argmax(
+                    next_token_logits,
+                    dim=-1,
+                )
+            else:
+                next_token_logits = next_token_logits / temperature
+
+                if top_k is not None:
+                    k = min(
+                        top_k,
+                        self.vocab_size,
+                    )
+
+                    top_k_value, _ = torch.topk(
+                        next_token_logits,
+                        k=k,
+                    )
+
+                    threashold = top_k_value[:, -1].unsqueeze(-1)
+
+                    next_token_logits = next_token_logits.masked_fill(
+                        next_token_logits < threashold,
+                        float("-inf"),
+                    )
+
+                probabilities = torch.softmax(
+                    next_token_logits,
+                    dim=-1,
+                )
+
+                next_token = torch.multinomial(
+                    probabilities,
+                    num_samples=1,
+                ).squeeze(-1)
 
             token_ids = torch.cat(
                 (
