@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from torch.optim.lr_scheduler import LRScheduler
@@ -29,8 +31,28 @@ class TrainingCheckpoint:
         cls,
         *,
         model: GPT,
-        optimizer:Optimizer,
-        scheduler : LRScheduler,
+        optimizer: Optimizer,
+        scheduler: LRScheduler,
         epoch: int,
         global_step: int,
     ) -> "TrainingCheckpoint":
+        return cls(
+            model_state=model.state_dict(),
+            optimizer_state=optimizer.state_dict(),
+            scheduler_state=scheduler.state_dict(),
+            epoch=epoch,
+            global_step=global_step,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        checkpoint: dict,
+    ) -> "TrainingCheckpoint":
+        return cls(
+            model_state=checkpoint["model_state"],
+            optimizer_state=checkpoint["optilizer_state"],
+            scheduler_state=checkpoint["scheduler_state"],
+            epoch=checkpoint["epoch"],
+            global_step=checkpoint["global_step"],
+        )

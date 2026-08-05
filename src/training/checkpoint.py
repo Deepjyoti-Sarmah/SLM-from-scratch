@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 
 
-class ChecKpointManager:
+class ChecKpointStore:
     def __init__(
         self,
         *,
