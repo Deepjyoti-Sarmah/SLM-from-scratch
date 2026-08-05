@@ -40,7 +40,7 @@ class Trainer:
         self.model.train()
 
         for epoch in range(self.config.num_epochs):
-            self.current_epoch = epoch
+            self.current_epoch = epoch + 1
 
             epoch_loss = 0.0
             num_batches = 0
@@ -55,23 +55,15 @@ class Trainer:
                 num_batches += 1
 
                 if self.global_step % self.config.log_every == 0:
-                    learning_rate = self.optimizer.param_groups[0]["lr"]
+                    self._log_training_step(batch_loss)
 
-                    print(
-                        f"[Epoch {epoch + 1:>2}/{self.config.num_epochs}] "
-                        f"[Step {self.global_step:>6}] "
-                        f"Loss: {batch_loss:.4f} "
-                        f"LR: {learning_rate:.6f}"
-                    )
-
-            average_loss = epoch_loss / num_batches
+            average_train_loss = epoch_loss / num_batches
 
             validation_loss = self._validate()
 
-            print(
-                f"Epoch {epoch + 1}/{self.config.num_epochs} | "
-                f"Train Loss: {average_loss:.4f} | "
-                f"Validation Loss: {validation_loss:.4f}"
+            self._log_epoch_summary(
+                train_loss=average_train_loss,
+                validation_loss=validation_loss,
             )
 
     def _train_step(
@@ -89,17 +81,17 @@ class Trainer:
             Batch loss.
         """
 
-        input_ids = input_ids.to(self.device)
-        target_ids = target_ids.to(self.device)
+        input_ids, target_ids = self._move_batch_to_device(
+            input_ids=input_ids,
+            target_ids=target_ids,
+        )
 
         self.optimizer.zero_grad(set_to_none=True)
 
-        _, loss = self.model(
-            token_ids=input_ids,
-            targets=target_ids,
+        loss = self._compute_loss(
+            input_ids=input_ids,
+            target_ids=target_ids,
         )
-
-        assert loss is not None
 
         loss.backward()
 
@@ -133,19 +125,89 @@ class Trainer:
 
         with torch.no_grad():
             for input_ids, target_ids in self.validation_dataloader:
-                input_ids = input_ids.to(self.device)
-                target_ids = target_ids.to(self.device)
-
-                _, loss = self.model(
-                    token_ids=input_ids,
-                    targets=target_ids,
+                input_ids, target_ids = self._move_batch_to_device(
+                    input_ids=input_ids,
+                    target_ids=target_ids,
                 )
 
-                assert loss is not None
+                loss = self._compute_loss(
+                    input_ids=input_ids,
+                    target_ids=target_ids,
+                )
 
                 total_loss += loss.item()
                 num_batches += 1
 
         self.model.train()
 
+        if num_batches == 0:
+            raise RuntimeError("Validation dataloader is empty")
+
         return total_loss / num_batches
+
+    def _compute_loss(
+        self,
+        *,
+        input_ids: torch.Tensor,
+        target_ids: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Run a forward pass and compute the language modeling loss.
+        """
+
+        _, loss = self.model(
+            token_ids=input_ids,
+            targets=target_ids,
+        )
+
+        assert loss is not None
+
+        return loss
+
+    def _move_batch_to_device(
+        self,
+        *,
+        input_ids: torch.Tensor,
+        target_ids: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Move a batch to the training device.
+        """
+
+        return (
+            input_ids.to(self.device),
+            target_ids.to(self.device),
+        )
+
+    def _log_training_step(
+        self,
+        loss: float,
+    ) -> None:
+        """
+        Log one optimization step.
+        """
+
+        learning_rate = self.optimizer.param_groups[0]["lr"]
+
+        print(
+            f"[Epoch {self.current_epoch:03d}/{self.config.num_epochs:03d}] "
+            f"[Step {self.global_step:06d}] "
+            f"Loss: {loss:.4f} "
+            f"LR: {learning_rate:.6e}"
+        )
+
+    def _log_epoch_summary(
+        self,
+        *,
+        train_loss: float,
+        validation_loss: float,
+    ) -> None:
+        """
+        Log epoch metrics.
+        """
+
+        print(
+            f"Epoch {self.current_epoch:03d}/{self.config.num_epochs:03d} | "
+            f"Train Loss: {train_loss:.4f} | "
+            f"Validation Loss: {validation_loss:.4f}"
+        )
