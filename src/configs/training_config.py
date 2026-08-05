@@ -15,6 +15,8 @@ class TrainingConfig:
 
     gradient_clip: float = 1.0
 
+    train_ratio: float = 0.9
+
     num_epochs: int = 10
 
     log_every: int = 100
