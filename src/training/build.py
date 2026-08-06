@@ -3,6 +3,8 @@ from src.configs.training_config import TrainingConfig
 from src.configs.training_pipeline import TrainingPipeline
 from src.models.gpt import GPT
 from src.tokenization.char_tokenizer import CharacterTokenizer
+from src.training.checkpoint import CheckpointManager
+from src.training.checkpoint_builder import build_checkpoint_manager
 from src.training.dataloader import build_dataloader
 from src.training.optimizer import build_optimizer
 from src.training.scheduler import build_scheduler
@@ -66,6 +68,8 @@ def build_training_pipeline(
         config=training_config,
     )
 
+    checkpoint_manager = build_checkpoint_manager(config=training_config)
+
     trainer = Trainer(
         model=model,
         train_dataloader=train_dataloader,
@@ -73,6 +77,7 @@ def build_training_pipeline(
         optimizer=optimizer,
         scheduler=scheduler,
         config=training_config,
+        checkpoint_manager=checkpoint_manager,
     )
 
     return TrainingPipeline(

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -22,7 +25,6 @@ class CheckpointManager:
         self,
         *,
         checkpoint: TrainingCheckpoint,
-        global_step: int,
     ) -> Path:
         """
         Save a training checkpoint.
@@ -33,10 +35,12 @@ class CheckpointManager:
             Path to the saved checkpoint.
         """
 
-        checkpoint_path = self.checkpoint_directory / f"step_{global_step:06d}.pt"
+        checkpoint_path = (
+            self.checkpoint_directory / f"step_{checkpoint.global_step:06d}.pt"
+        )
 
         torch.save(
-            checkpoint,
+            checkpoint.to_dict(),
             checkpoint_path,
         )
 
@@ -49,18 +53,19 @@ class CheckpointManager:
         map_location: str | torch.device = "cpu",
     ) -> TrainingCheckpoint:
         """
-        Load a checkpoint.
+        Load a training checkpoint.
         """
-        checkpoint = torch.load(
+
+        checkpoint_dict: dict[str, Any] = torch.load(
             checkpoint_path,
             map_location=map_location,
         )
 
-        return TrainingCheckpoint.from_dict(checkpoint)
+        return TrainingCheckpoint.from_dict(checkpoint_dict)
 
     def latest_checkpoint(self) -> Path | None:
         """
-        Return the newest checkpoint.
+        Return the most recent checkpoint.
         """
 
         checkpoints = sorted(self.checkpoint_directory.glob("step_*.pt"))

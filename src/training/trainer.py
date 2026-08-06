@@ -210,7 +210,6 @@ class Trainer:
 
         checkpoint_path = self.checkpoint_manager.save(
             checkpoint=checkpoint,
-            global_step=self.global_step,
         )
 
         print(f"Checkpoint saved to {checkpoint_path}")
