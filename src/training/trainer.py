@@ -5,6 +5,8 @@ from torch.utils.data import DataLoader
 
 from src.configs.training_config import TrainingConfig
 from src.models.gpt import GPT
+from src.training.checkpoint import CheckpointManager
+from src.training.training_checkpoint import TrainingCheckpoint
 
 
 class Trainer:
@@ -17,6 +19,7 @@ class Trainer:
         optimizer: Optimizer,
         scheduler: LRScheduler,
         config: TrainingConfig,
+        checkpoint_manager: CheckpointManager,
     ) -> None:
         self.model: GPT = model
         self.train_dataloader: DataLoader = train_dataloader
@@ -24,6 +27,7 @@ class Trainer:
         self.optimizer: Optimizer = optimizer
         self.scheduler = scheduler
         self.config: TrainingConfig = config
+        self.checkpoint_manager = checkpoint_manager
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -106,6 +110,9 @@ class Trainer:
 
         self.global_step += 1
 
+        if self.global_step % self.config.checkpoint_every == 0:
+            self._save_checkpoint()
+
         return loss.item()
 
     def _validate(self) -> float:
@@ -178,6 +185,35 @@ class Trainer:
             input_ids.to(self.device),
             target_ids.to(self.device),
         )
+
+    def _create_checkpoint(self) -> TrainingCheckpoint:
+        """
+        Capture the current training state.
+        """
+
+        return TrainingCheckpoint.from_training_state(
+            model=self.model,
+            optimizer=self.optimizer,
+            scheduler=self.scheduler,
+            epoch=self.current_epoch,
+            global_step=self.global_step,
+        )
+
+    def _save_checkpoint(
+        self,
+    ) -> None:
+        """
+        Save the current training state.
+        """
+
+        checkpoint = self._create_checkpoint()
+
+        checkpoint_path = self.checkpoint_manager.save(
+            checkpoint=checkpoint,
+            global_step=self.global_step,
+        )
+
+        print(f"Checkpoint saved to {checkpoint_path}")
 
     def _log_training_step(
         self,

@@ -23,6 +23,8 @@ class TrainingConfig:
 
     checkpoint_every: int = 1000
 
+    checkpoint_directory: str = "checkpoints"
+
     warmup_steps: int = 200
 
     max_steps: int = 10_000

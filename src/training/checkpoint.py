@@ -2,8 +2,10 @@ from pathlib import Path
 
 import torch
 
+from src.training.training_checkpoint import TrainingCheckpoint
 
-class ChecKpointManager:
+
+class CheckpointManager:
     def __init__(
         self,
         *,
@@ -19,7 +21,7 @@ class ChecKpointManager:
     def save(
         self,
         *,
-        checkpoint: dict,
+        checkpoint: TrainingCheckpoint,
         global_step: int,
     ) -> Path:
         """
@@ -45,17 +47,16 @@ class ChecKpointManager:
         checkpoint_path: str | Path,
         *,
         map_location: str | torch.device = "cpu",
-    ) -> dict:
+    ) -> TrainingCheckpoint:
         """
         Load a checkpoint.
         """
-
-        checkpoint_path = Path(checkpoint_path)
-
-        return torch.load(
+        checkpoint = torch.load(
             checkpoint_path,
             map_location=map_location,
         )
+
+        return TrainingCheckpoint.from_dict(checkpoint)
 
     def latest_checkpoint(self) -> Path | None:
         """
