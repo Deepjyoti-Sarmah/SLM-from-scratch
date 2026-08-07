@@ -41,9 +41,18 @@ class Trainer:
         Train the model for multiple epochs
         """
 
+        self._resume_from_checkpoint()
+
+        if self.current_epoch >= self.config.num_epochs:
+            print("Trainigng is already complete.")
+            return
+
         self.model.train()
 
-        for epoch in range(self.config.num_epochs):
+        for epoch in range(
+            self.config.num_epochs,
+            self.config.num_epochs,
+        ):
             self.current_epoch = epoch + 1
 
             epoch_loss = 0.0
@@ -69,6 +78,26 @@ class Trainer:
                 train_loss=average_train_loss,
                 validation_loss=validation_loss,
             )
+
+    def _resume_from_checkpoint(self) -> None:
+        """
+        Resume training from the latest checkpoint if one exists.
+        """
+
+        checkpoint_path = self.checkpoint_manager.latest_checkpoint()
+
+        if checkpoint_path is None:
+            print("No checkpoint found. Starting fresh.")
+            return
+
+        checkpoint = self.checkpoint_manager.load(
+            checkpoint_path=checkpoint_path,
+            map_location=self.device,
+        )
+
+        self._load_checkpoint(checkpoint)
+
+        print(f"Resumed training from {checkpoint_path}")
 
     def _train_step(
         self,
@@ -185,6 +214,21 @@ class Trainer:
             input_ids.to(self.device),
             target_ids.to(self.device),
         )
+
+    def _load_checkpoint(
+        self,
+        checkpoint: TrainingCheckpoint,
+    ) -> None:
+        """
+        Restore the training state.
+        """
+
+        self.model.load_state_dict(checkpoint.model_state)
+        self.optimizer.load_state_dict(checkpoint.optimizer_state)
+        self.scheduler.load_state_dict(checkpoint.scheduler_state)
+
+        self.current_epoch = checkpoint.epoch
+        self.global_step = checkpoint.global_step
 
     def _create_checkpoint(self) -> TrainingCheckpoint:
         """
