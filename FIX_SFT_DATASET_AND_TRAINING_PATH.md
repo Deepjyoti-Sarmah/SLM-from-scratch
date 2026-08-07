@@ -1,35 +1,45 @@
-# Fix SFT Dataset Length and Training Data Path
+Fix SFT Dataset Quality, Context Length, and Training Data Path
 
-## Objective
+Objective
 
-Fix the current Shakespeare Troll SFT pipeline before the next Kaggle training run.
+Fix the Shakespeare Troll SFT pipeline before the next Kaggle trainingrun.
 
-The current SFT dataset is incompatible with the model's `128` character-level context window:
+The current SFT dataset is incompatible with the model's 128character-level context window:
 
-- Dataset size: `2780`
-- Formatted example minimum: `157` characters
-- Formatted example maximum: `308` characters
-- Formatted example mean: `211.77` characters
-- Response minimum: `119` characters
-- Response maximum: `232` characters
-- Response mean: `155.91` characters
-- `2780 / 2780` examples are longer than the `128` token context.
+Dataset size: 2780
 
-Because the tokenizer is character-level, one character is approximately one model token.
+Formatted example minimum: 157 characters
 
-The current training pipeline therefore truncates every SFT example.
+Formatted example maximum: 308 characters
 
-Do not simply increase the number of training steps.
+Formatted example mean: 211.77 characters
 
-The goal is to regenerate the SFT dataset so that the complete question + technical answer + Shakespearean troll fits inside the existing `128` token context.
+Response minimum: 119 characters
 
----
+Response maximum: 232 characters
 
-# 1. Preserve the Existing Model Architecture
+Response mean: 155.91 characters
+
+2780 / 2780 examples are longer than the 128 token context.
+
+Because the tokenizer is character-level, one character is approximatelyone model token.
+
+The previous 300-step SFT run produced incoherent outputs. Do notsimply increase the number of training steps. Fix the training datarepresentation and quality first.
+
+The goal is to regenerate the SFT dataset so that:
+
+question
+↓
+short, technically correct answer
+↓
+Shakespearean / witty troll
+
+fits completely inside the existing 128 token context.
+
+1. Preserve the Existing Model Architecture
 
 Do NOT change:
 
-```text
 vocab_size = 65
 max_sequence_length = 128
 embedding_dim = 256
@@ -42,7 +52,7 @@ checkpoints/step_010000.pt
 
 Do NOT replace the character tokenizer.
 
-The existing pretrained checkpoint must remain compatible with the model.
+The existing pretrained checkpoint must remain compatible with themodel.
 
 2. Inspect the Existing Codebase First
 
@@ -50,26 +60,29 @@ Before changing anything, inspect:
 
 sed -n '1,360p' scripts/generate_shakespeare_troll_sft.py
 
+sed -n '1,280p' src/datasets/instruction_dataset.py
+
+sed -n '1,320p' scripts/train_sft.py
+
+sed -n '1,220p' src/configs/sft_config.py
+
+sed -n '1,220p' src/tokenization/char_tokenizer.py
+
 Also inspect:
 
-sed -n '1,280p' src/datasets/instruction_dataset.py
-sed -n '1,280p' scripts/train_sft.py
-sed -n '1,220p' src/configs/sft_config.py
-sed -n '1,220p' src/tokenization/char_tokenizer.py
+grep -Rni "shakespeare_troll_sft" .
 
 Understand the existing implementation before modifying it.
 
 Do not rewrite unrelated parts of the project.
 
-3. Fix the SFT Dataset Generator
+3. Preserve the Dataset Size and Concept Coverage
 
 The source of truth for the large dataset is:
 
 scripts/generate_shakespeare_troll_sft.py
 
 Modify the generator rather than manually editing the generated JSONL.
-
-The generated dataset must retain the existing scale and concept/question variation.
 
 Target:
 
@@ -83,23 +96,33 @@ The current conceptual structure should remain:
 ×
 2 trolls
 =
+
 2640 examples
 
-+
+-
 
 7 war-story questions
 ×
 20 trolls
 =
+
 140 examples
 
 Total = 2780
 
 Do not unnecessarily reduce the dataset size.
 
-4. Change the SFT Formatting
+4. Keep the JSONL Schema
 
-The current formatting is:
+The external dataset schema must remain:
+
+{"instruction": "...", "response": "..."}
+
+Do not introduce additional required fields.
+
+5. Change the SFT Formatting
+
+The previous formatting was:
 
 USER:
 What is AdamW?
@@ -114,37 +137,62 @@ Use compact formatting:
 Q: What is AdamW?
 A: AdamW uses adaptive gradients and decoupled weight decay. Thy confusion doth exceed thy understanding.
 
-The exact implementation can continue to use the existing instruction and response JSON fields.
+The exact instruction and response fields remain unchanged in JSONL.
 
-The JSONL structure must remain:
+The compact prompt should be implemented in InstructionDataset.
 
-{
-  "instruction": "...",
-  "response": "..."
-}
+Do not leave the old USER: / ASSISTANT: format if it causesunnecessary context usage.
 
-Do not change the external dataset schema.
-
-5. Make Responses Short
+6. Improve the Response Quality
 
 Each response must contain:
 
 A technically correct explanation.
-A short Shakespearean troll.
+
+A short, playful Shakespearean troll.
 
 Desired structure:
 
 technical explanation. Shakespearean troll.
 
-Example:
+Weak examples include:
 
-AdamW uses adaptive gradients and decoupled weight decay. Thy confusion doth exceed thy understanding.
+Thy confusion is noted.
+Now thou knowest.
+Well met, remember it.
+The matter is settled.
+Ask, and it is answered.
+Thus the lesson is given.
+This answer is thine.
+May thy code stay true.
 
-Another example:
+These are generic closings, not meaningful trolls.
 
-An API lets software communicate through defined interfaces. Thy code hath asked for a messenger; here stands one.
+Prefer varied endings such as:
 
-The troll must be playful, not abusive.
+Thy optimizer hath more discipline than thy questions.
+
+Even thy gradients deserve better manners than this confusion.
+
+A useful question at last; mark the calendar, good mortal.
+
+Thy parameters are now better governed than thy reasoning.
+
+The compiler hath survived thy question; let us hope thy code doth likewise.
+
+Thy curiosity is noble, though thy confusion entered wearing a crown.
+
+The troll must be:
+
+playful
+
+Shakespearean in wording
+
+concise
+
+varied
+
+not abusive
 
 Do not include generation instructions inside the response.
 
@@ -154,66 +202,91 @@ Explain this in plain language.
 Answer clearly, then add a Shakespearean roast.
 Teach the concept and insult the user.
 
-Those are instructions to a generator, not training targets.
+Those are generator instructions, not training targets.
 
-6. Enforce a Hard Length Limit
+7. Add Factual Variation
 
-This is critical.
+Do not repeat exactly the same factual sentence for every question abouta concept.
 
-Because the model has:
+For AdamW, for example, avoid using only:
+
+AdamW uses adaptive gradients and decoupled weight decay.
+
+Use several technically equivalent formulations:
+
+AdamW uses adaptive gradients and decoupled weight decay.
+
+AdamW is an optimizer that separates weight decay from the gradient update.
+
+AdamW combines adaptive parameter updates with decoupled weight decay.
+
+AdamW modifies Adam by applying weight decay independently of the gradient update.
+
+Then combine factual variants with different troll variants.
+
+The target structure is:
+
+                    ┌── factual variation
+
+Question ───────────┤
+└── troll variation
+
+not:
+
+Question
+↓
+same answer
+↓
+random stock ending
+
+Preserve technical correctness. Do not invent facts merely to createvariation.
+
+8. Enforce a Hard Length Limit
+
+The model has:
 
 max_sequence_length = 128
 
-the complete formatted example should be <= 120 characters.
+The complete formatted example must be:
 
-Use 120, not 128, to leave a small safety margin.
+<= 120 characters
 
-The generator must check this.
+Use 120, not 128, to leave a safety margin.
 
 Conceptually:
 
 formatted = (
-    "Q: "
-    + instruction
-    + "\nA: "
-    + response
+"Q: " + instruction + "
+A: " + response
 )
 
 if len(formatted) > 120:
-    raise ValueError(
-        f"SFT example exceeds length limit: {len(formatted)}"
-    )
+raise ValueError(
+f"SFT example exceeds length limit: {len(formatted)}"
+)
 
-Do NOT silently truncate the response.
-
-If an example exceeds the limit:
-
-FAIL
-
-and identify the offending example.
+Do not silently truncate the response.
 
 Do not do:
 
 response = response[:120]
 
-because that could cut a sentence or troll in half.
+Instead, make the source response shorter.
 
-The generator itself must produce shorter content.
+The generator must fail loudly if an example exceeds the limit.
 
-7. Verify Dataset Length After Generation
+9. Validate Dataset Length
 
-After regenerating:
+After regeneration, validate:
 
 data/shakespeare_troll_sft_large.jsonl
 
-run a validation script.
-
-It must report:
+The validator must report:
 
 Examples: 2780
 Maximum formatted length: <= 120
-Examples over 128: 0
 Examples over 120: 0
+Examples over 128: 0
 
 Also report:
 
@@ -224,91 +297,61 @@ Median formatted length
 Minimum response length
 Maximum response length
 Mean response length
-8. Preserve the 65-Character Vocabulary
+
+All 2780 examples must fit.
+
+10. Preserve the 65-Character Vocabulary
 
 The tokenizer is created from:
 
 data/tiny_shakespeare.txt
 
-The vocabulary size must remain:
+Vocabulary size must remain:
 
 65
 
-Every character in:
-
-instruction
-response
-
-must exist in:
+Every character in instruction and response must exist in:
 
 tokenizer.token_to_id
-
-Run a validation equivalent to:
-
-from src.tokenization.char_tokenizer import CharacterTokenizer
-
-with open(
-    "data/tiny_shakespeare.txt",
-    encoding="utf-8",
-) as f:
-    tokenizer = CharacterTokenizer(f.read())
-
-Then scan the complete dataset.
 
 The final result must be:
 
 Vocabulary size: 65
 Unknown characters: 0
 
-Do not change the tokenizer to accommodate new characters.
+Do not change the tokenizer.
 
-Avoid characters such as:
-
-+
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-
-unless they already exist in the vocabulary.
-
-The existing dataset already demonstrated this problem with:
+Previously problematic content included:
 
 C++
 HTTP 404
 HTTP 500
 
-These were normalized previously to vocabulary-safe forms such as:
+Keep the established vocabulary-safe normalization:
 
 CPP
 HTTP four zero four
 HTTP five zero zero
 
-Keep that behavior.
+Do not introduce unsupported numeric or punctuation characters.
 
-9. Fix the Training Data Path
+11. Fix the Training Data Path
 
-The current Kaggle run failed because scripts/train_sft.py expected:
+The previous Kaggle run failed because scripts/train_sft.py expected:
 
 data/shakespeare_troll_sft.jsonl
 
-but the actual large dataset is:
+while the actual large dataset is:
 
 data/shakespeare_troll_sft_large.jsonl
 
-This must be fixed.
+Fix the actual training configuration/script.
 
-Inspect:
+Run:
 
 grep -Rni "shakespeare_troll_sft" .
 
-The SFT training configuration/script must point to:
+The SFT training configuration must point to:
 
 data/shakespeare_troll_sft_large.jsonl
 
@@ -316,108 +359,96 @@ not:
 
 data/shakespeare_troll_sft.jsonl
 
-The intended configuration should be equivalent to:
+Equivalent configuration:
 
 config = SFTConfig(
-    pretrained_checkpoint="checkpoints/step_010000.pt",
-    dataset_path="data/shakespeare_troll_sft_large.jsonl",
-    checkpoint_directory="checkpoints/sft",
-    ...
+pretrained_checkpoint="checkpoints/step_010000.pt",
+dataset_path="data/shakespeare_troll_sft_large.jsonl",
+checkpoint_directory="checkpoints/sft",
+...
 )
 
-Do not create a fake duplicate of the large dataset under the old filename just to hide the configuration error.
+Do not create a fake duplicate under the old filename.
 
-Fix the actual path in the SFT configuration/training script.
+12. Make the Training Path Robust on Kaggle
 
-10. Make the Training Path Robust on Kaggle
-
-The training script is executed from:
+The Kaggle project root is:
 
 /kaggle/working/slm-from-scratch
 
-Therefore relative paths should resolve from the repository root:
-
-data/...
-checkpoints/...
-scripts/...
-src/...
-
-Before training, the Kaggle notebook should execute:
+Before training:
 
 cd /kaggle/working/slm-from-scratch
-
-Then verify:
-
 pwd
 
 Expected:
 
 /kaggle/working/slm-from-scratch
 
-Verify the dataset:
+Verify:
 
 ls -lh data/shakespeare_troll_sft_large.jsonl
-
-Verify the base checkpoint:
-
 ls -lh checkpoints/step_010000.pt
-11. Do Not Introduce Absolute Kaggle Paths
+
+Use repository-relative paths inside the project.
+
+13. Do Not Hardcode Kaggle Input Paths
 
 Do NOT hardcode:
 
 /kaggle/input/...
 
-inside the project.
+inside project source code.
 
-The repository should work both locally and on Kaggle.
+The project must work locally and on Kaggle.
 
 Use:
 
 data/shakespeare_troll_sft_large.jsonl
-
-and:
-
 checkpoints/step_010000.pt
+checkpoints/sft/
 
-as project-relative paths.
+as repository-relative paths.
 
-12. Verify the Dataset Before Training
+14. Verify the Dataset Before Training
 
 Run:
 
 python scripts/generate_shakespeare_troll_sft.py
 
-Then run the validation.
+Then validate:
 
-The validation must verify all of the following:
-
-JSONL valid                    ✓
-2780 examples                  ✓
-Vocabulary size = 65           ✓
-Unknown characters = 0         ✓
+JSONL valid ✓
+2780 examples ✓
+Vocabulary size = 65 ✓
+Unknown characters = 0 ✓
 Maximum formatted length <=120 ✓
-Examples over 120 = 0          ✓
-Examples over 128 = 0          ✓
-No meta instructions           ✓
-No accidental C++               ✓
-No numeric vocabulary errors   ✓
-13. Verify InstructionDataset
+Examples over 120 = 0 ✓
+Examples over 128 = 0 ✓
+No meta instructions ✓
+No accidental C++ ✓
+No unsupported numeric chars ✓
+Technical facts remain correct ✓
+Trolls are varied ✓
+Factual answers are varied ✓
 
-After regeneration, inspect one example:
+15. Verify InstructionDataset
+
+Inspect one example:
 
 from src.datasets.instruction_dataset import InstructionDataset
 from src.tokenization.char_tokenizer import CharacterTokenizer
 
 with open(
-    "data/tiny_shakespeare.txt",
-    encoding="utf-8",
+"data/tiny_shakespeare.txt",
+encoding="utf-8",
 ) as f:
-    tokenizer = CharacterTokenizer(f.read())
+tokenizer = CharacterTokenizer(f.read())
 
 dataset = InstructionDataset(
-    path="data/shakespeare_troll_sft_large.jsonl",
-    tokenizer=tokenizer,
-    sequence_length=128,
+path="data/shakespeare_troll_sft_large.jsonl",
+tokenizer=tokenizer,
+sequence_length=128,
 )
 
 input_ids, target_ids = dataset[0]
@@ -428,52 +459,62 @@ print("Target shape:", target_ids.shape)
 print(tokenizer.decode(input_ids.tolist()))
 print(target_ids.tolist())
 
-The question/prompt must be masked.
+The compact question/prompt must be masked.
 
 The answer must not be masked.
 
 Conceptually:
 
 Q: What is AdamW?
-A: AdamW uses adaptive gradients...
+A: AdamW uses adaptive gradients and decoupled weight decay...
 
 Target:
 
 [MASK][MASK][MASK]...
 AdamW uses adaptive gradients...
-14. Train From the Original Base Checkpoint
 
-Do NOT continue SFT from the bad 300-step SFT checkpoint.
+Verify that the response remains intact and is not truncated.
+
+16. Verify Effective Sequence Length
+
+Use the exact formatting logic from InstructionDataset.
+
+For every example:
+
+formatted_length <= 120
+
+must be true before training.
+
+Do not rely on the dataset class to silently truncate invalid records.
+
+17. Train From the Original Base Checkpoint
+
+Do NOT continue SFT from the previous bad 300-step SFT checkpoint.
 
 Start again from:
 
 checkpoints/step_010000.pt
 
-The training flow must be:
+Training flow:
 
 step_010000.pt
-       ↓
+↓
 corrected SFT dataset
-       ↓
+↓
 SFT
-       ↓
+↓
 checkpoints/sft/
 
 The original base checkpoint must remain untouched.
 
-15. Kaggle Training
+18. Kaggle Training
 
 Once validation passes:
 
 cd /kaggle/working/slm-from-scratch
-
-Run:
-
 python -m scripts.train_sft
 
-or the project's established SFT command if different.
-
-Confirm the output says:
+Confirm:
 
 Device: cuda
 GPU: Tesla T4
@@ -482,11 +523,9 @@ Base checkpoint loaded:
 Parameters: 4,782,336
 SFT examples: 2780
 
-Then training should begin.
+19. Checkpoint Requirements
 
-16. Checkpoint Requirements
-
-SFT checkpoints must be written to:
+SFT checkpoints must be saved under:
 
 checkpoints/sft/
 
@@ -496,22 +535,39 @@ checkpoints/sft/step_000100.pt
 checkpoints/sft/step_000200.pt
 checkpoints/sft/step_000300.pt
 
-At the end, also save the final checkpoint if the training script is configured to do so.
-
-The checkpoint must contain at minimum:
+At minimum:
 
 {
-    "model_state": ...,
-    "optimizer_state": ...,
-    "global_step": ...
+"model_state": ...,
+"optimizer_state": ...,
+"global_step": ...
 }
 
 Do not overwrite:
 
 checkpoints/step_010000.pt
-17. Test Before Uploading Anywhere
 
-After SFT, load the final SFT checkpoint and test prompts such as:
+20. Do Not Reuse the Bad 300-Step SFT Checkpoint
+
+The previous run used the old overlong dataset.
+
+Treat:
+
+checkpoints/sft/step_000300.pt
+
+as an experimental artifact only.
+
+Do not resume from it.
+
+Start from:
+
+checkpoints/step_010000.pt
+
+after the dataset fixes are complete.
+
+21. Evaluate Before Uploading
+
+After training, test:
 
 What is Python?
 What is a database?
@@ -519,130 +575,218 @@ What is an API?
 What is machine learning?
 What is AdamW?
 
-The expected behavior is:
+Desired behavior:
 
-technical answer
-+
-Shakespearean style
-+
-short playful troll
+short technical explanation +
+Shakespearean wording +
+playful/witty troll
 
-It should NOT produce:
+The model does not need to reproduce any example verbatim.
 
-USER:
-...
-ASSISTANT:
-...
+It should learn the behavioral pattern.
 
-as part of the generated answer.
+22. Compare Base vs SFT
 
-The prompt may appear in the displayed full sequence because generation starts from the supplied prompt, but the generated continuation itself should be the answer.
+Run the same prompts against:
 
-18. Compare Base Model vs SFT Model
-
-Always test the same prompts on:
-
-Base checkpoint
+Base:
+checkpoints/step_010000.pt
 
 and:
 
-SFT checkpoint
+SFT:
+checkpoints/sft/step_000300.pt
 
-Example:
+Compare:
 
-Prompt:
-What is Python?
+Technical coherence
 
-Record both outputs.
+Instruction following
 
-The SFT model should show a measurable behavioral shift toward:
+Shakespearean style
 
-technical explanation
-+
-Shakespearean phrasing
-+
-troll
+Troll behavior
 
-If the SFT output is still incoherent, do not immediately increase training steps.
+Repetition
 
-First inspect:
+Randomness / degeneration
 
-training loss
-dataset formatting
-masking
-sequence length
-generation parameters
-19. Final Acceptance Criteria
+The SFT model should show a clear behavioral shift.
 
-The task is complete only when all of these are true:
+Do not judge solely from loss.
+
+23. Generation Parameters
+
+For evaluation, use consistent parameters, for example:
+
+temperature=0.8
+top_k=20
+top_p=0.9
+
+Use the same parameters for Base and SFT comparison.
+
+Also test:
+
+temperature=0.0
+
+for deterministic behavior.
+
+24. If the Model Is Still Incoherent
+
+Do NOT immediately increase training steps.
+
+Inspect in this order:
+
+1. Dataset formatting
+2. Dataset length
+3. Response completeness
+4. Loss masking
+5. Training loss
+6. Learning rate
+7. Sampling parameters
+8. Dataset diversity
+
+Only after the pipeline is verified should training duration beincreased.
+
+25. Final Acceptance Criteria
 
 Dataset
+
 2780 examples
 65-character vocabulary
 0 unknown characters
 0 examples > 120 formatted characters
 0 examples > 128 formatted characters
 0 meta/generation instructions
+technical facts remain correct
+trolls are varied
+factual answers are varied
+
 Training
+
 Base checkpoint loads successfully
 CUDA/T4 is used on Kaggle
 SFT dataset loads successfully
-Loss decreases or shows meaningful training behavior
+Loss is finite
+Loss shows meaningful training behavior
 SFT checkpoints are saved
+
 Generation
 
-The model produces answers resembling:
+The model should produce:
 
-technical explanation
-+
-Shakespearean language
-+
+technical explanation +
+Shakespearean style +
 playful troll
 
 rather than random text.
 
 Paths
 
-The SFT script uses:
+The SFT script must use:
 
 data/shakespeare_troll_sft_large.jsonl
-
-and:
-
 checkpoints/step_010000.pt
-
-and saves to:
-
 checkpoints/sft/
 
 All paths must be repository-relative.
 
 Important Constraints
 
-Do not:
+Do NOT
 
 change the pretrained architecture
+
 change the tokenizer
+
 change vocabulary size
-modify step_010000.pt
+
+modify checkpoints/step_010000.pt
+
 silently truncate responses
+
 delete examples just because they are long
+
 replace the dataset with a tiny test dataset
+
 hardcode /kaggle/input/...
+
 train from the previous bad SFT checkpoint
+
 add meta-instructions to response targets
 
-Do:
+use identical factual answers for every variation
+
+use identical generic troll endings throughout the dataset
+
+DO
 
 modify the dataset generator
-shorten technical answers and trolls
-enforce a hard length check
-preserve 2780 examples
-fix the dataset path in the training configuration
-validate the dataset before training
-train from the original pretrained checkpoint
-save SFT checkpoints under checkpoints/sft/
-test base vs SFT behavior after training
 
-The key change is that the agent should **fix the generator and the actual training configuration**, rather than merely creating another copy of the dataset under `shakespeare_troll_sft.jsonl`.
-```
+keep 2780 examples
+
+create shorter technical answers
+
+create shorter and more varied Shakespearean trolls
+
+vary factual wording while preserving correctness
+
+enforce <= 120 formatted characters
+
+fail loudly on length violations
+
+preserve the 65-character vocabulary
+
+fix the actual SFT dataset path
+
+validate the dataset before training
+
+verify masking
+
+train from checkpoints/step_010000.pt
+
+save SFT checkpoints under checkpoints/sft/
+
+compare Base vs SFT generation
+
+only tune training duration after the pipeline is verified
+
+Expected End-to-End Pipeline
+
+data/tiny_shakespeare.txt
+│
+├── CharacterTokenizer
+│ │
+│ └── 65-character vocabulary
+│
+├── pretrained model
+│ │
+│ └── checkpoints/step_010000.pt
+│
+└── SFT generator
+│
+├── 2780 examples
+├── technical answer
+├── Shakespearean troll
+├── varied factual wording
+├── varied troll wording
+└── <= 120 characters
+│
+↓
+InstructionDataset
+│
+├── compact Q/A formatting
+├── prompt masked
+└── response trained
+│
+↓
+SFT
+│
+↓
+checkpoints/sft/
+│
+↓
+Base vs SFT
+evaluation
+
+The agent must make the minimum necessary code changes and reportexactly which files were modified and why.
