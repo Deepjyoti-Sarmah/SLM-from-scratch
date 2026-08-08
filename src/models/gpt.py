@@ -6,6 +6,8 @@ from src.configs.gpt_config import GPTConfig
 from src.embeddings.embedding_layer import EmbeddingLayer
 from src.layers.decoder_block import DecoderBlock
 
+_LOGIT_MASK_VALUE = float("-inf")
+
 
 class GPT(nn.Module):
     def __init__(
@@ -77,9 +79,16 @@ class GPT(nn.Module):
         loss: torch.Tensor | None = None
 
         if targets is not None:
+            flattened_logits = logits.reshape(
+                -1,
+                self.vocab_size,
+            )
+
+            flattened_targets = targets.reshape(-1)
+
             loss = F.cross_entropy(
-                logits.reshape(-1, self.vocab_size),
-                targets.reshape(-1),
+                flattened_logits,
+                flattened_targets,
             )
 
         return logits, loss
@@ -118,7 +127,7 @@ class GPT(nn.Module):
 
         logits = logits.masked_fill(
             logits < threshold,
-            float("-inf"),
+            _LOGIT_MASK_VALUE,
         )
 
         return logits
@@ -155,12 +164,12 @@ class GPT(nn.Module):
 
         sorted_logits = sorted_logits.masked_fill(
             sorted_mask,
-            float("-inf"),
+            _LOGIT_MASK_VALUE,
         )
 
         filtered_logits = torch.full_like(
             logits,
-            float("-inf"),
+            _LOGIT_MASK_VALUE,
         )
 
         filtered_logits.scatter_(
@@ -170,6 +179,35 @@ class GPT(nn.Module):
         )
 
         return filtered_logits
+
+    def _prepare_logits(
+        self,
+        logits: torch.Tensor,
+        *,
+        temperature: float,
+        top_k: int | None,
+        top_p: float | None,
+    ) -> torch.Tensor:
+        """
+        Apply all sampling strategies to the logits.
+        """
+
+        logits = self._apply_temperature(
+            logits=logits,
+            temperature=temperature,
+        )
+
+        logits = self._apply_top_k(
+            logits=logits,
+            top_k=top_k,
+        )
+
+        logits = self._apply_top_p(
+            logits=logits,
+            top_p=top_p,
+        )
+
+        return logits
 
     def _sample_next_token(
         self,
@@ -291,18 +329,25 @@ class GPT(nn.Module):
             #
             logits = logits[:, -1, :]
 
-            logits = self._apply_temperature(
-                logits,
+            # logits = self._apply_temperature(
+            #     logits,
+            #     temperature=temperature,
+            # )
+
+            # logits = self._apply_top_k(
+            #     logits=logits,
+            #     top_k=top_k,
+            # )
+
+            # logits = self._apply_top_p(
+            #     logits=logits,
+            #     top_p=top_p,
+            # )
+
+            logits = self._prepare_logits(
+                logits=logits,
                 temperature=temperature,
-            )
-
-            logits = self._apply_top_k(
-                logits=logits,
                 top_k=top_k,
-            )
-
-            logits = self._apply_top_p(
-                logits=logits,
                 top_p=top_p,
             )
 
