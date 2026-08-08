@@ -210,7 +210,21 @@ class GPT(nn.Module):
         # if top_k is not None and top_k <= 0:
         #     raise ValueError("top_k must be greater than 0")
 
+        was_training = self.training
+
         self.eval()
+
+        if temperature < 0:
+            raise ValueError("temperature must be greater than or equal to 0.")
+
+        if top_k is not None and top_k <= 0:
+            raise ValueError("top_k must be greater than 0.")
+
+        if top_p is not None and not (0.0 < top_p <= 1.0):
+            raise ValueError("top_p must be in the range (0, 1].")
+
+        if max_new_tokens <= 0:
+            raise ValueError("max_new_tokens must be greater than 0.")
 
         for _ in range(max_new_tokens):
             input_ids = token_ids[
@@ -304,5 +318,8 @@ class GPT(nn.Module):
                 ),
                 dim=-1,
             )
+
+        if was_training:
+            self.train()
 
         return token_ids
