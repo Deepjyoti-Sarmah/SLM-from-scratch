@@ -79,6 +79,8 @@ class Trainer:
                 validation_loss=validation_loss,
             )
 
+            self._save_checkpoint()
+
     def _resume_from_checkpoint(self) -> None:
         """
         Resume training from the latest checkpoint if one exists.
