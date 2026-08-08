@@ -1,9 +1,9 @@
 from src.configs.gpt_config import GPTConfig
 from src.configs.training_config import TrainingConfig
 from src.configs.training_pipeline import TrainingPipeline
+from src.inference.generator import TextGenerator
 from src.models.gpt import GPT
 from src.tokenization.char_tokenizer import CharacterTokenizer
-from src.training.checkpoint import CheckpointManager
 from src.training.checkpoint_builder import build_checkpoint_manager
 from src.training.dataloader import build_dataloader
 from src.training.optimizer import build_optimizer
@@ -80,8 +80,15 @@ def build_training_pipeline(
         checkpoint_manager=checkpoint_manager,
     )
 
+    generator = TextGenerator(
+        model=model,
+        tokenizer=tokenizer,
+        device=trainer.device,
+    )
+
     return TrainingPipeline(
         trainer=trainer,
         model=model,
         tokenizer=tokenizer,
+        generator=generator,
     )

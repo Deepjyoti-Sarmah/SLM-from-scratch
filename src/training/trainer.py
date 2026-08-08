@@ -50,7 +50,7 @@ class Trainer:
         self.model.train()
 
         for epoch in range(
-            self.config.num_epochs,
+            self.current_epoch,
             self.config.num_epochs,
         ):
             self.current_epoch = epoch + 1

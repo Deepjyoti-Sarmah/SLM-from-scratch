@@ -36,6 +36,13 @@ def main() -> None:
 
     pipeline.trainer.train()
 
+    print(
+        pipeline.generator.generate(
+            prompt="ROMEO",
+            max_new_tokens=300,
+        )
+    )
+
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,5 @@
 import torch
 
-from main import token_ids
 from src.models.gpt import GPT
 from src.tokenization.char_tokenizer import CharacterTokenizer
 
@@ -22,7 +21,7 @@ class TextGenerator:
         self,
         *,
         prompt: str,
-        max_new_token: int = 200,
+        max_new_tokens: int = 200,
     ) -> str:
         self.model.eval()
 
@@ -36,7 +35,7 @@ class TextGenerator:
 
         generated = self.model.generate(
             token_ids=token_ids_tensor,
-            max_new_tokens=max_new_token,
+            max_new_tokens=max_new_tokens,
         )
 
         text = self.tokenizer.decode(generated[0].tolist())
