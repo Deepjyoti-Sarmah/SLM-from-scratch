@@ -50,7 +50,11 @@ def main() -> None:
     print("GPT TRAINING SMOKE TEST")
     print("=" * 80)
 
-    data_path = Path("data/tiny_shakespeare.txt")
+    project_root = Path(__file__).resolve().parent.parent
+
+    data_path = project_root / "data" / "tiny_shakespeare.txt"
+
+    # data_path = Path("data/tiny_shakespeare.txt")
 
     text = data_path.read_text(encoding="utf-8")
 
