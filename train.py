@@ -29,7 +29,7 @@ def main() -> None:
         learning_rate=3e-4,
         weight_decay=0.1,
         beta1=0.9,
-        beta2=0.095,
+        beta2=0.95,
         gradient_clip=1.0,
         train_ratio=0.9,
         num_epochs=100,
