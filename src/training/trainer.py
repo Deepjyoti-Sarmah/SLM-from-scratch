@@ -44,7 +44,11 @@ class Trainer:
         self._resume_from_checkpoint()
 
         if self.current_epoch >= self.config.num_epochs:
-            print("Trainigng is already complete.")
+            print("Training is already complete.")
+            return
+
+        if self.global_step >= self.config.max_steps:
+            print("Maximum training steps already reached.")
             return
 
         self.model.train()
@@ -59,6 +63,9 @@ class Trainer:
             num_batches = 0
 
             for input_ids, target_ids in self.train_dataloader:
+                if self.global_step >= self.config.max_steps:
+                    break
+
                 batch_loss = self._train_step(
                     input_ids=input_ids,
                     target_ids=target_ids,
@@ -70,6 +77,9 @@ class Trainer:
                 if self.global_step % self.config.log_every == 0:
                     self._log_training_step(batch_loss)
 
+            if num_batches == 0:
+                break
+
             average_train_loss = epoch_loss / num_batches
 
             validation_loss = self._validate()
@@ -80,6 +90,10 @@ class Trainer:
             )
 
             self._save_checkpoint()
+
+            if self.global_step >= self.config.max_steps:
+                print(f"Maximum training steps reached: {self.config.max_steps}")
+                break
 
     def _resume_from_checkpoint(self) -> None:
         """

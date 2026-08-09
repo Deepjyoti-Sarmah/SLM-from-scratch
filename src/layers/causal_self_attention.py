@@ -129,7 +129,7 @@ class CausalSelfAttention(nn.Module):
 
         query, key, value = qkv.split(
             self.embedding_dim,
-            dim=1,
+            dim=-1,
         )
 
         query = self._split_heads(
