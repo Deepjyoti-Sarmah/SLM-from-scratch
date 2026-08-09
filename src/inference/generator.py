@@ -22,9 +22,10 @@ class TextGenerator:
         *,
         prompt: str,
         max_new_tokens: int = 200,
+        temperature: float = 1.0,
+        top_k: int | None = None,
+        top_p: float | None = None,
     ) -> str:
-        self.model.eval()
-
         token_ids = self.tokenizer.encode(prompt)
 
         token_ids_tensor = torch.tensor(
@@ -36,10 +37,11 @@ class TextGenerator:
         generated = self.model.generate(
             token_ids=token_ids_tensor,
             max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
         )
 
         text = self.tokenizer.decode(generated[0].tolist())
-
-        self.model.train()
 
         return text
