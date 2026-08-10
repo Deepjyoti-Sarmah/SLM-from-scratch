@@ -91,8 +91,31 @@ CUDA is used automatically when available; the model never requires it.
 
 ### Download from the Hub
 
-Files are included in this repository, but they can also be fetched
-automatically:
+The weights are stored as a Git LFS object. If you `git clone` this repo,
+install git-lfs first or you will only get small LFS *pointer* files:
+
+```bash
+git lfs install
+git clone https://huggingface.co/Deepjyoti/shakespeare-GPT
+cd shakespeare-GPT
+pip install -r requirements.txt
+python inference.py --prompt "ROMEO:"
+```
+
+Alternatively, download the files with the `hf` / `huggingface_hub` tooling
+(no git-lfs needed):
+
+```bash
+pip install -r requirements.txt
+
+# hf CLI
+hf download Deepjyoti/shakespeare-GPT --local-dir .
+
+# or Python
+python -c "from huggingface_hub import snapshot_download; snapshot_download('Deepjyoti/shakespeare-GPT', local_dir='.')"
+```
+
+You can also let `inference.py` fetch the weights automatically:
 
 ```bash
 python inference.py \
