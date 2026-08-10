@@ -1,0 +1,11 @@
+{
+  "model_type": "shakespeare-gpt",
+  "vocab_size": 65,
+  "max_sequence_length": 128,
+  "embedding_dim": 256,
+  "num_heads": 8,
+  "num_layers": 6,
+  "dropout_probability": 0.0,
+  "bias": false,
+  "initializer_range": 0.02
+}
