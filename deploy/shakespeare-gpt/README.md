@@ -1,3 +1,16 @@
+---
+license: other
+language:
+  - en
+pipeline_tag: text-generation
+tags:
+  - gpt
+  - text-generation
+  - character-level
+  - tiny-shakespeare
+  - pytorch
+---
+
 # Shakespeare GPT
 
 A small, self-contained character-level GPT trained on Tiny Shakespeare.
