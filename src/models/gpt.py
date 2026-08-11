@@ -89,6 +89,7 @@ class GPT(nn.Module):
             loss = F.cross_entropy(
                 flattened_logits,
                 flattened_targets,
+                ignore_index=-100,
             )
 
         return logits, loss
