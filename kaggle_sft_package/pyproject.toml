@@ -1,0 +1,12 @@
+[project]
+name = "llm-from-scratch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "ipykernel>=7.3.0",
+    "jupyter>=1.1.1",
+    "numpy>=2.5.1",
+    "torch>=2.13.0",
+]
