@@ -56,39 +56,49 @@ QUESTION_TEMPLATES = [
 ]
 
 TROLLS = [
-    "Thy confusion is noted.",
-    "Now thou knowest.",
-    "Well met, remember it.",
-    "The matter is settled.",
-    "Ask, and it is answered.",
-    "Go forth, code bravely.",
-    "Thus the lesson is given.",
-    "May thy code stay true.",
-    "This answer is thine.",
-    "Vex the compiler no more.",
+    "Thy bug bows, forsooth.",
+    "Thy compiler exhales.",
+    "Thou art less lost.",
+    "Mark it, good mortal.",
+    "Thy code gains manners.",
+    "Confusion quits the field.",
+    "Thy logic finds shoes.",
+    "The bug shakes in boots.",
+    "Thy syntax smiles.",
+    "Wisdom knocks at last.",
+    "The stack grows calmer.",
+    "Thy errors lose rank.",
+    "Thy code hath hope.",
+    "Reason wears the crown.",
+    "Thy tests may cheer.",
+    "Fog flees thy brow.",
+    "Thy functions bow.",
+    "Thy runtime survives.",
+    "Thy cache grows smug.",
+    "Thy question earns tea.",
 ]
 
 WAR_TROLLS = [
-    "Yet it works now.",
-    "A strange mystery.",
-    "The gremlins fled.",
-    "Ask the duck.",
-    "Tis but rules.",
-    "Few threads aid.",
-    "Change one thing.",
-    "Tis the way of it.",
-    "Blame not the code.",
-    "Forsooth, solved.",
-    "Thy fight is real.",
-    "The bug fears light.",
-    "Step wisely, knight.",
-    "The fix is near.",
-    "Verily, it works.",
-    "Strange but true.",
-    "The tale continues.",
-    "Patience, coder.",
-    "And lo, it runs.",
-    "The code gods smile.",
+    "Thy bug bows, forsooth.",
+    "The gremlins flee.",
+    "Thy duck grows wise.",
+    "The stack grows calmer.",
+    "Thy compiler exhales.",
+    "Thy code gains manners.",
+    "Confusion drops its crown.",
+    "Thy logic finds shoes.",
+    "The bug shakes in boots.",
+    "Thy syntax smiles.",
+    "Wisdom knocks at last.",
+    "Thy errors lose rank.",
+    "Thy code hath hope.",
+    "Reason wins the duel.",
+    "Thy tests may cheer.",
+    "Fog flees thy brow.",
+    "Thy functions bow.",
+    "Thy runtime survives.",
+    "Thy cache grows smug.",
+    "Mark it, good mortal.",
 ]
 
 WAR_STORIES = {
@@ -237,22 +247,168 @@ CONCEPT_FACTS = {
 }
 
 
+VERB_PHRASES = [
+    "uses",
+    "merges",
+    "describes",
+    "packages",
+    "orchestrates",
+    "adds",
+    "tunes",
+    "queries",
+    "executes",
+    "coordinates",
+    "groups",
+    "wraps",
+    "stores",
+    "yields",
+    "keeps",
+    "runs",
+    "turns",
+    "tests",
+    "speeds",
+    "changes",
+    "depends",
+    "passes",
+    "predicts",
+    "maps",
+    "verifies",
+    "controls",
+    "scores",
+    "sends",
+    "halves",
+    "hides",
+    "trains",
+    "finds",
+    "scrambles",
+    "shrinks",
+    "lowers",
+    "caps",
+    "weighs",
+    "checks",
+]
+
+
+def lower_first(text: str) -> str:
+    return text[:1].lower() + text[1:]
+
+
+def pronoun_fact_variant(fact: str) -> str:
+    """Create a concise factual paraphrase without changing meaning."""
+    if fact.startswith("Stores "):
+        return "It stores " + lower_first(fact.removeprefix("Stores "))
+
+    if fact.startswith("Runs "):
+        return "It runs " + lower_first(fact.removeprefix("Runs "))
+
+    if fact.startswith("Finds "):
+        return "It finds " + lower_first(fact.removeprefix("Finds "))
+
+    if fact.startswith("A system driven by events."):
+        return "It is driven by events."
+
+    if fact.startswith("Many networked machines work "):
+        return "They work " + fact.removeprefix("Many networked machines work ")
+
+    for verb in VERB_PHRASES:
+        marker = f" {verb} "
+        if marker in fact:
+            return f"It {verb} {fact.split(marker, maxsplit=1)[1]}"
+
+    return fact
+
+
+def factual_variants(fact: str) -> list[str]:
+    """Return short factual variants for repeated questions on a concept."""
+    variants = [fact]
+
+    pronoun_variant = pronoun_fact_variant(fact)
+    if pronoun_variant not in variants:
+        variants.append(pronoun_variant)
+
+    brief_body = fact
+    if fact.startswith(("A ", "An ", "The ", "Many ", "Stores ", "Runs ", "Finds ")):
+        brief_body = lower_first(fact)
+
+    brief_variant = "In brief, " + brief_body
+    if brief_variant not in variants:
+        variants.append(brief_variant)
+
+    plain_variant = fact.removesuffix(".") + ", plainly."
+    if plain_variant not in variants:
+        variants.append(plain_variant)
+
+    return variants
+
+
+def select_response(
+    *,
+    instruction: str,
+    fact: str,
+    troll_start: int,
+    variant_start: int,
+    troll_pool: list[str],
+) -> str:
+    """Choose a varied factual answer and troll that fit the hard limit."""
+    variants = factual_variants(fact)
+
+    for variant_offset in range(len(variants)):
+        variant = variants[(variant_start + variant_offset) % len(variants)]
+        for troll_offset in range(len(troll_pool)):
+            troll = troll_pool[(troll_start + troll_offset) % len(troll_pool)]
+            response = f"{variant} {troll}"
+            if len(format_example(instruction, response)) <= MAX_FORMATTED_LENGTH:
+                return response
+
+    raise ValueError(
+        "No concise SFT response fits length limit for "
+        f"instruction={instruction!r} fact={fact!r}"
+    )
+
+
 def build_records():
     """Build the full list of (instruction, response) records."""
     records = []
 
-    for name, fact in sorted(CONCEPT_FACTS.items()):
+    for concept_index, (name, fact) in enumerate(sorted(CONCEPT_FACTS.items())):
         for template_index, template in enumerate(QUESTION_TEMPLATES):
             instruction = template.replace("{name}", name)
-            first_troll = TROLLS[(template_index * 2) % len(TROLLS)]
-            second_troll = TROLLS[(template_index * 2 + 1) % len(TROLLS)]
-            records.append((instruction, f"{fact} {first_troll}"))
-            records.append((instruction, f"{fact} {second_troll}"))
 
-    for index, (question, fact) in enumerate(sorted(WAR_STORIES.items())):
+            records.append(
+                (
+                    instruction,
+                    select_response(
+                        instruction=instruction,
+                        fact=fact,
+                        troll_start=(concept_index + template_index * 2),
+                        variant_start=template_index,
+                        troll_pool=TROLLS,
+                    ),
+                )
+            )
+            records.append(
+                (
+                    instruction,
+                    select_response(
+                        instruction=instruction,
+                        fact=fact,
+                        troll_start=(concept_index + template_index * 2 + 1),
+                        variant_start=(template_index + 1),
+                        troll_pool=TROLLS,
+                    ),
+                )
+            )
+
+    for story_index, (question, fact) in enumerate(sorted(WAR_STORIES.items())):
         for troll_index in range(len(WAR_TROLLS)):
-            troll = WAR_TROLLS[troll_index]
-            records.append((question, f"{fact} {troll}"))
+            response = select_response(
+                instruction=question,
+                fact=fact,
+                troll_start=(story_index + troll_index),
+                variant_start=troll_index,
+                troll_pool=WAR_TROLLS,
+            )
+            records.append((question, response))
 
     return records
 
