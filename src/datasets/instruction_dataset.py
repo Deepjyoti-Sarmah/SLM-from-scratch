@@ -67,7 +67,7 @@ class InstructionDataset(Dataset):
         instruction = example["instruction"]
         response = example["response"]
 
-        prompt = f"USER:\n{instruction}\n\nASSISTANT:\n"
+        prompt = f"Q: {instruction}\nA: "
 
         full_text = prompt + response
 

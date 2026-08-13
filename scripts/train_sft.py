@@ -57,7 +57,7 @@ def main() -> None:
 
     config = SFTConfig(
         pretrained_checkpoint=("checkpoints/step_010000.pt"),
-        dataset_path=("data/shakespeare_troll_sft.jsonl"),
+        dataset_path=("data/shakespeare_troll_sft_large.jsonl"),
         checkpoint_directory=("checkpoints/sft"),
         batch_size=8,
         learning_rate=1e-5,
