@@ -1,7 +1,7 @@
 import torch
 
 from src.configs.gpt_config import GPTConfig
-from src.models.gpt import GPTModel
+from src.models.gpt import GPT
 
 
 def main() -> None:
@@ -13,7 +13,7 @@ def main() -> None:
         num_layers=2,
     )
 
-    model = GPTModel(
+    model = GPT(
         config=config,
     )
 
