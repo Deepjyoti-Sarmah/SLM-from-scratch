@@ -59,7 +59,7 @@ Current model constraints (do NOT change them):
    - Tokenizer compatibility: `Vocabulary size: 65`, `Unknown characters: 0`.
    - Meta-instruction grep scan: no matches.
    - No `+` or digit characters remain in the regenerated file.
-7. **No training/architecture/tokenizer code was changed.** The base checkpoint is untouched. The only new file is `scripts/generate_shakespeare_troll_sft.py` plus the regenerated `data/shakespeare_troll_sft_large.jsonl` and the backup.
+7. **Training/data-pipeline status:** the base checkpoint, tokenizer, and GPT architecture are untouched. The SFT data pipeline now supports explicit `TOPIC: ...\nQ: ...\nA: ...` conditioning and correct shifted target masking, so loss is computed only on the response and the first response character is not masked.
 
 ### 2.3 Example cleaned record
 
@@ -91,10 +91,10 @@ slm-from-scratch/
 ├── src/
 │   ├── configs/
 │   │   ├── gpt_config.py                    # GPTConfig (vocab 65, seq 128, dim 256, 8 heads, 6 layers)
-│   │   ├── sft_config.py                    # SFTConfig (lr 1e-5, batch 8, seq 128, max 300 steps)
+│   │   ├── sft_config.py                    # SFTConfig defaults; train_sft.py overrides max_steps to 2000
 │   │   └── ...
 │   ├── datasets/
-│   │   ├── instruction_dataset.py           # ★ SFT dataset: masks USER prompt, pads to 128
+│   │   ├── instruction_dataset.py           # ★ SFT dataset: Q/A format, masks prompt, pads to 128
 │   │   ├── gpt_dataset.py
 │   │   └── ...
 │   ├── models/gpt.py                        # GPT model (forward returns logits + loss)
@@ -125,15 +125,17 @@ Legend: `★` = the files that matter most for the Kaggle SFT run.
 1. Loads the pretrained base model from `checkpoints/step_010000.pt` (`strict=True`).
 2. Builds a `CharacterTokenizer` from `data/tiny_shakespeare.txt` (vocab = 65).
 3. Loads the SFT JSONL via `InstructionDataset`:
-   - Formats each example as `USER:\n{instruction}\n\nASSISTANT:\n{response}`.
+   - For TOPIC-conditioned examples, formats each example as `TOPIC: {topic}\nQ: {question}\nA: {response}`.
+   - Internally uses prompt `TOPIC: {topic}\nQ: {question}\nA: ` and appends the response.
    - Encodes to character IDs.
-   - Truncates to `sequence_length + 1 = 129` IDs, shifts to build input/target pairs.
-   - Masks the `USER:` prompt tokens with `-100` (loss only computed on the assistant response).
+   - Allows up to `sequence_length + 1 = 129` IDs, because input and targets are shifted by one for next-token prediction.
+   - Raises an error if an example is too long instead of silently truncating a response.
+   - Masks only the prompt portion with `-100`; the first non-masked target must be the first response character.
    - Pads with zeros / `-100` to length 128 if shorter.
 4. Fine-tunes with `AdamW` (lr `1e-5`, weight decay `0.01`, betas `0.9/0.95`), gradient clipping `1.0`, batch size `8`.
 5. Saves SFT checkpoints to `checkpoints/sft/step_{step:06d}.pt` every `100` steps (and at the end).
 
-Important nuance: `InstructionDataset.__getitem__` requires `sequence_length + 1 = 129` encoded tokens **for the whole `USER:...ASSISTANT:...` prompt + response**. Facts are ~90 chars, trolls ~100 chars, prompt ~25 chars → just under the 129-token cap, so records fit without truncating the answer. Do not reduce `sequence_length`.
+Important nuance: because this is next-token prediction, targets are shifted by one. The correct prompt mask length is `len(prompt_ids) - 1`, not `len(prompt_ids)`. For the AdamW example, the first supervised target must decode to `A`, not `d` and not `:`. Do not reduce `sequence_length`.
 
 ---
 
@@ -141,37 +143,47 @@ Important nuance: `InstructionDataset.__getitem__` requires `sequence_length + 1
 
 ### Option A (recommended): upload the repo to a Kaggle Dataset and run a T4 GPU notebook
 
+> **Ready-to-upload artifact:** a clean, validated package already exists.
+> Upload **`kaggle_sft_package.zip`** (fresh, TOPIC-conditioned, TOPIC: `TOPIC: {topic}\nQ: {question}\nA: {response}`) — or its copy **`slm-from-scratch-kaggle-sft.zip`** (byte-identical contents, same package directory).
+> Both were rebuilt on `2026-08-14` after the TOPIC-conditioning change and verified end-to-end (see Section 6).
+> They contain `checkpoints/step_010000.pt`, the 2780-example TOPIC-conditioned dataset, all `src/`, all `scripts/`, `pyproject.toml`, and `uv.lock` — with **no** old SFT checkpoints.
+
 1. **Create a Kaggle Dataset** containing:
-   - `script` (source code) or zip the whole repo as `slm-from-scratch.zip` (repository root, including `data/`, `src/`, `scripts/`, `checkpoints/`, `pyproject.toml`).
+   - Upload `kaggle_sft_package.zip` as-is (it zips the `kaggle_sft_package/` directory; the notebook in step 2 copies it to `/kaggle/working/repo`).
    - Install `uv` or just use `pip` inside the notebook (`pip install torch` is preinstalled on Kaggle; `numpy` also present).
 2. **Notebook** (GPU T4 accelerator):
 
 ```python
 # 1) Pull your Kaggle dataset into the working dir, e.g.
-!mkdir -p /kaggle/working/repo
-!cp -r /kaggle/input/your-dataset-slug/* /kaggle/working/repo/
+#    The package zip contains a single top-level kaggle_sft_package/ folder,
+#    so copy its contents and cd into that folder.
+!mkdir -p /kaggle/working
+!cp -r /kaggle/input/your-dataset-slug/* /kaggle/working/
 
 import os
-os.chdir('/kaggle/working/repo')
+os.chdir('/kaggle/working/kaggle_sft_package')
 print(os.getcwd())
 
-# 2) Quick sanity checks (from the docs)
-import json
-with open('data/shakespeare_troll_sft_large.jsonl', encoding='utf-8') as f:
-    examples = [json.loads(l) for l in f]
-print('examples:', len(examples))
-print('sample:', examples[0]['response'][:90])
+# 2) Quick dataset validation
+!python scripts/validate_sft_dataset.py
 
-# 3) Run SFT (this script auto-detects CUDA)
+# 3) Full SFT readiness check: Q/A formatting, target masking, paths,
+#    base checkpoint load, and finite one-batch loss.
+!python scripts/verify_sft_ready.py
+
+# 4) Confirm train_sft.py uses the correct paths
+!grep -nE 'pretrained_checkpoint|dataset_path|checkpoint_directory|max_steps|checkpoint_every' scripts/train_sft.py
+
+# 5) Run SFT only after all checks pass. This script auto-detects CUDA.
 !python scripts/train_sft.py
 ```
 
-3. **Checkpoints** land in `checkpoints/sft/step_{step:06d}.pt`. With the default `max_steps=300` and `checkpoint_every=100`, you get `step_000100.pt`, `step_000200.pt`, `step_000300.pt`.
+3. **Checkpoints** land in `checkpoints/sft/step_{step:06d}.pt`. With the current `scripts/train_sft.py` settings, `max_steps=2000` and `checkpoint_every=100`, so you get checkpoints every 100 steps through `step_002000.pt`.
 4. **Generate / test** on the result, then zip `checkpoints/sft/` and download.
 
 ### Option B: adapt the script inline
 
-Copy `scripts/train_sft.py`'s logic into a notebook cell, or change `SFTConfig` values directly in `scripts/train_sft.py` before running. Current defaults: `max_steps=300`, `batch_size=8`, `lr=1e-5`, `checkpoint_every=100`, `sequence_length=128`. Tune `max_steps` / `batch_size` / `lr` on the T4 as needed (watch the printed loss).
+Copy `scripts/train_sft.py`'s logic into a notebook cell, or change `SFTConfig` values directly in `scripts/train_sft.py` before running. Current training-script settings: `max_steps=2000`, `batch_size=8`, `lr=1e-5`, `checkpoint_every=100`, `sequence_length=128`. Tune `max_steps` / `batch_size` / `lr` on the T4 as needed, but always start from `checkpoints/step_010000.pt`, not from an old SFT checkpoint.
 
 ---
 
@@ -185,7 +197,10 @@ Copy `scripts/train_sft.py`'s logic into a notebook cell, or change `SFTConfig` 
 - [x] No generation/meta instructions inside responses
 - [x] Technical facts preserved, Shakespearean troll retained
 - [x] Base checkpoint `checkpoints/step_010000.pt` untouched
-- [x] Tokenizer / GPT architecture / training loop untouched
+- [x] Tokenizer / GPT architecture untouched
+- [x] SFT dataset formatting uses `TOPIC: ...\nQ: ...\nA: ...`
+- [x] First non-masked target for AdamW is `A`
+- [x] Loss uses `ignore_index=-100`
 
 ---
 
