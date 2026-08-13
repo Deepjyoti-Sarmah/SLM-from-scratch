@@ -67,18 +67,27 @@ class InstructionDataset(Dataset):
         instruction = example["instruction"]
         response = example["response"]
 
-        prompt = f"Q: {instruction}\nA: "
+        if instruction.startswith("TOPIC:"):
+            prompt = f"{instruction}\nA: "
+        else:
+            prompt = f"Q: {instruction}\nA: "
 
         full_text = prompt + response
 
         full_ids = self.tokenizer.encode(full_text)
         prompt_ids = self.tokenizer.encode(prompt)
 
-        if len(full_ids) > self.sequence_length:
+        # We need sequence_length + 1 tokens because input_ids and
+        # target_ids are shifted by one for next-token prediction.
+        maximum_full_length = self.sequence_length + 1
+
+        if len(full_ids) > maximum_full_length:
             raise ValueError(
-                f"Example {index} exceeds sequence length: "
-                f"{len(full_ids)} > {self.sequence_length}"
+                f"Example {index} exceeds maximum shifted sequence length: "
+                f"{len(full_ids)} > {maximum_full_length}"
             )
+
+        full_ids = full_ids[:maximum_full_length]
 
         if len(full_ids) < 2:
             raise ValueError(f"Example {index} is too short.")
@@ -86,17 +95,18 @@ class InstructionDataset(Dataset):
         input_ids = full_ids[:-1]
         target_ids = full_ids[1:]
 
-        # Do not train on the prompt. Because targets are shifted by one,
-        # masking len(prompt_ids) - 1 positions leaves the first response
-        # character as the first supervised target.
-        prompt_length = min(
+        # Do not train on the prompt. Because target_ids are shifted by one,
+        # the prompt occupies len(prompt_ids) - 1 positions in target_ids.
+        # This leaves the first response character as the first supervised
+        # target.
+        target_mask_length = min(
             max(len(prompt_ids) - 1, 0),
             len(target_ids),
         )
 
         target_ids = target_ids.copy()
 
-        target_ids[:prompt_length] = [-100] * prompt_length
+        target_ids[:target_mask_length] = [-100] * target_mask_length
 
         # Pad remaining positions.
         padding_length = self.sequence_length - len(input_ids)

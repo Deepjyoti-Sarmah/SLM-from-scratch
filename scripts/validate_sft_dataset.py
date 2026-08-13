@@ -60,6 +60,9 @@ def format_example(
     instruction: str,
     response: str,
 ) -> str:
+    if instruction.startswith("TOPIC:"):
+        return f"{instruction}\nA: {response}"
+
     return f"Q: {instruction}\nA: {response}"
 
 

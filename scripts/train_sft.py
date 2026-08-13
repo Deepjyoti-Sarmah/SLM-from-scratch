@@ -65,7 +65,7 @@ def main() -> None:
         beta1=0.9,
         beta2=0.95,
         gradient_clip=1.0,
-        max_steps=300,
+        max_steps=2000,
         log_every=10,
         checkpoint_every=100,
         sequence_length=128,
