@@ -74,9 +74,11 @@ class InstructionDataset(Dataset):
         full_ids = self.tokenizer.encode(full_text)
         prompt_ids = self.tokenizer.encode(prompt)
 
-        # We need sequence_length + 1 tokens because
-        # language-model inputs and targets are shifted by one.
-        full_ids = full_ids[: self.sequence_length + 1]
+        if len(full_ids) > self.sequence_length:
+            raise ValueError(
+                f"Example {index} exceeds sequence length: "
+                f"{len(full_ids)} > {self.sequence_length}"
+            )
 
         if len(full_ids) < 2:
             raise ValueError(f"Example {index} is too short.")
@@ -84,9 +86,11 @@ class InstructionDataset(Dataset):
         input_ids = full_ids[:-1]
         target_ids = full_ids[1:]
 
-        # Do not train on the USER prompt.
+        # Do not train on the prompt. Because targets are shifted by one,
+        # masking len(prompt_ids) - 1 positions leaves the first response
+        # character as the first supervised target.
         prompt_length = min(
-            len(prompt_ids),
+            max(len(prompt_ids) - 1, 0),
             len(target_ids),
         )
 
