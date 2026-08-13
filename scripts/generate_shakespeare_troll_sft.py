@@ -11,11 +11,12 @@ Key properties:
     * Output is deterministic and reproducible.
     * CPP stands in for C++ and HTTP status codes are written as words,
       because "+", "5", "0", and "4" are not in the vocabulary.
-    * Examples use compact "Q: ...\\nA: ..." formatting so the whole
-      example fits inside the model's 128-character context window.
+    * Examples use explicit "TOPIC: ...\\nQ: ...\\nA: ..." conditioning so
+      the whole example fits inside the model's 128-character context window.
 
 Contract:
-    formatted = "Q: " + instruction + "\\nA: " + response
+    instruction = "TOPIC: " + topic + "\\nQ: " + question
+    formatted = instruction + "\\nA: " + response
 
     len(formatted) <= 120
 """
@@ -360,10 +361,23 @@ def select_response(
             if len(format_example(instruction, response)) <= MAX_FORMATTED_LENGTH:
                 return response
 
+    for variant_offset in range(len(variants)):
+        response = variants[(variant_start + variant_offset) % len(variants)]
+        if len(format_example(instruction, response)) <= MAX_FORMATTED_LENGTH:
+            return response
+
     raise ValueError(
         "No concise SFT response fits length limit for "
         f"instruction={instruction!r} fact={fact!r}"
     )
+
+
+def format_instruction(
+    *,
+    topic: str,
+    question: str,
+) -> str:
+    return f"TOPIC: {topic}\nQ: {question}"
 
 
 def build_records():
@@ -372,7 +386,11 @@ def build_records():
 
     for concept_index, (name, fact) in enumerate(sorted(CONCEPT_FACTS.items())):
         for template_index, template in enumerate(QUESTION_TEMPLATES):
-            instruction = template.replace("{name}", name)
+            question = template.replace("{name}", name)
+            instruction = format_instruction(
+                topic=name,
+                question=question,
+            )
 
             records.append(
                 (
@@ -400,15 +418,20 @@ def build_records():
             )
 
     for story_index, (question, fact) in enumerate(sorted(WAR_STORIES.items())):
+        instruction = format_instruction(
+            topic="debugging",
+            question=question,
+        )
+
         for troll_index in range(len(WAR_TROLLS)):
             response = select_response(
-                instruction=question,
+                instruction=instruction,
                 fact=fact,
                 troll_start=(story_index + troll_index),
                 variant_start=troll_index,
                 troll_pool=WAR_TROLLS,
             )
-            records.append((question, response))
+            records.append((instruction, response))
 
     return records
 
@@ -417,6 +440,9 @@ def format_example(
     instruction: str,
     response: str,
 ) -> str:
+    if instruction.startswith("TOPIC:"):
+        return f"{instruction}\nA: {response}"
+
     return f"Q: {instruction}\nA: {response}"
 
 
