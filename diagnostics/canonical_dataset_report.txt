@@ -1,0 +1,41 @@
+Canonical SFT Dataset Report
+===========================
+
+Physical input rows:               2780
+Unique input instructions:         1327
+Output rows:                       1327
+Duplicate instructions after canonicalization: 0
+Conflicting responses before canonicalization: 1142
+Conflicting responses after canonicalization:  0
+Unique instruction/response pairs: 1327
+First-character conflict instructions: 0
+
+First-character distribution:
+  'A': 502
+  'B': 34
+  'C': 47
+  'D': 23
+  'E': 8
+  'F': 19
+  'G': 33
+  'H': 22
+  'I': 222
+  'J': 20
+  'K': 19
+  'L': 20
+  'M': 11
+  'O': 18
+  'P': 30
+  'Q': 8
+  'R': 91
+  'S': 42
+  'T': 96
+  'U': 17
+  'V': 28
+  'W': 17
+
+Maximum formatted length:          120
+Vocabulary size:                   65
+Unknown characters:                0
+InstructionDataset masking result: PASSED
+Pytest result:                      11 passed
