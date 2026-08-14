@@ -144,12 +144,12 @@ Important nuance: because this is next-token prediction, targets are shifted by 
 ### Option A (recommended): upload the repo to a Kaggle Dataset and run a T4 GPU notebook
 
 > **Ready-to-upload artifact:** a clean, validated package already exists.
-> Upload **`kaggle_sft_package.zip`** (fresh, TOPIC-conditioned, TOPIC: `TOPIC: {topic}\nQ: {question}\nA: {response}`) — or its copy **`slm-from-scratch-kaggle-sft.zip`** (byte-identical contents, same package directory).
-> Both were rebuilt on `2026-08-14` after the TOPIC-conditioning change and verified end-to-end (see Section 6).
-> They contain `checkpoints/step_010000.pt`, the 2780-example TOPIC-conditioned dataset, all `src/`, all `scripts/`, `pyproject.toml`, and `uv.lock` — with **no** old SFT checkpoints.
+> Upload **`slm-from-scratch-kaggle-sft.zip`** (fresh, TOPIC-conditioned, TOPIC: `TOPIC: {topic}\nQ: {question}\nA: {response}`).
+> It was rebuilt on `2026-08-14` after the TOPIC-conditioning change and verified end-to-end (see Section 6).
+> It contains `checkpoints/step_010000.pt`, the 2780-example TOPIC-conditioned dataset, all `src/`, all `scripts/`, `pyproject.toml`, and `uv.lock` — with **no** old SFT checkpoints.
 
 1. **Create a Kaggle Dataset** containing:
-   - Upload `kaggle_sft_package.zip` as-is (it zips the `kaggle_sft_package/` directory; the notebook in step 2 copies it to `/kaggle/working/repo`).
+   - Upload `slm-from-scratch-kaggle-sft.zip` as-is (it zips the `kaggle_sft_package/` directory; the notebook in step 2 copies it to `/kaggle/working/repo`).
    - Install `uv` or just use `pip` inside the notebook (`pip install torch` is preinstalled on Kaggle; `numpy` also present).
 2. **Notebook** (GPU T4 accelerator):
 
